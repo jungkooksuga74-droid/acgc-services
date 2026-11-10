@@ -8923,7 +8923,7 @@ function CustomerDashboard() {
                                   </div>
                                   <div className="flex shrink-0 flex-col gap-2 sm:items-end">
                                     {itemIndex === 0 && (
-                                      <div className="flex max-w-full flex-wrap items-center justify-start gap-2 sm:justify-end">
+                                      <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
                                         {(orderInstallationBilling?.receipts?.length > 0 || orderInstallationBilling?.project_receipts?.length > 0) && (
                                           <button
                                             type="button"
@@ -9268,7 +9268,7 @@ function CustomerDashboard() {
                             ) : paymentProofOpenOrderId === orderId ? (
                               <div className={`sm:col-span-2 rounded-xl border p-4 sm:p-5 ${darkMode ? "border-slate-700 bg-slate-800/80" : "border-[#e9e1d4] bg-white"}`}>
                                 <div className="grid w-full gap-3">
-                                  <div className="w-full max-w-2xl">
+                                  <div className="w-full max-w-[420px]">
                                     <label htmlFor={`payment-amount-${orderId}`} className={`mb-1.5 flex items-center gap-2 text-sm font-bold ${darkMode ? "text-slate-100" : "text-slate-900"}`}>
                                       Amount paid <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${darkMode ? "bg-amber-500/15 text-amber-300" : "bg-amber-100 text-amber-700"}`}>(required)</span>
                                     </label>
@@ -9299,10 +9299,10 @@ function CustomerDashboard() {
                                     <div className={`mb-2 flex items-center gap-2 text-sm font-bold ${darkMode ? "text-slate-100" : "text-slate-900"}`}>
                                       Payment proof <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${darkMode ? "bg-amber-500/15 text-amber-300" : "bg-amber-100 text-amber-700"}`}>(required)</span>
                                     </div>
-                                    <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
+                                    <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                                       <label
                                         htmlFor={`payment-proof-${orderId}`}
-                                        className={`flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-xl border border-dashed px-3 py-2 transition focus-within:ring-2 focus-within:ring-amber-500 ${darkMode ? "border-slate-600 bg-slate-900 hover:border-slate-500" : "border-[#e9e1d4] bg-[#faf8f4] hover:border-amber-400"}`}
+                                        className={`flex min-h-11 w-full max-w-[420px] min-w-0 shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-dashed px-3 py-2 transition focus-within:ring-2 focus-within:ring-amber-500 ${darkMode ? "border-slate-600 bg-slate-900 hover:border-slate-500" : "border-[#e9e1d4] bg-[#faf8f4] hover:border-amber-400"}`}
                                       >
                                         <FileText size={15} className="shrink-0 text-slate-400" aria-hidden="true" />
                                         <span className={`min-w-0 flex-1 truncate text-[11px] font-medium ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
@@ -9317,7 +9317,7 @@ function CustomerDashboard() {
                                           className="sr-only"
                                         />
                                       </label>
-                                      <div className="flex shrink-0 justify-end gap-2">
+                                      <div className="flex shrink-0 justify-end gap-2 sm:ml-auto">
                                         <button
                                           type="button"
                                           onClick={requestClosePaymentProofForm}
@@ -9352,7 +9352,7 @@ function CustomerDashboard() {
                                   <button
                                     type="button"
                                     onClick={() => handleOpenPaymentProofForm(orderId)}
-                                    className="inline-flex h-9 w-fit shrink-0 items-center justify-center rounded-lg bg-emerald-700 px-4 text-xs font-bold text-white transition hover:bg-emerald-800"
+                                    className="inline-flex h-9 w-fit shrink-0 self-end items-center justify-center rounded-lg bg-emerald-700 px-4 text-xs font-bold text-white transition hover:bg-emerald-800 sm:self-auto"
                                   >
                                     Submit Payment Proof
                                   </button>
