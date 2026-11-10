@@ -3219,9 +3219,13 @@ select:not([multiple]) option:hover {
 }
 
 
+.about-business-page {
+  padding-top: 88px;
+}
+
 .about-business-shell {
   width: 100%;
-  padding: 15px;
+  padding: 20px clamp(18px, 3.1vw, 60px);
   background: #f1efe9;
   color: #172033;
 }
@@ -3234,8 +3238,8 @@ select:not([multiple]) option:hover {
 .about-business-content {
   display: grid;
   width: 100%;
-  max-width: 1440px;
-  gap: 16px;
+  max-width: 1800px;
+  gap: 20px;
   margin: 0 auto;
 }
 
@@ -3384,7 +3388,7 @@ select:not([multiple]) option:hover {
   display: grid;
   grid-template-columns: 1.1fr 1fr;
   align-items: stretch;
-  gap: 16px;
+  gap: 20px;
 }
 
 .about-info-card {
@@ -3681,9 +3685,19 @@ select:not([multiple]) option:hover {
   }
 }
 
+@media (max-width: 900px) {
+  .about-business-page {
+    padding-top: 138px;
+  }
+
+  .about-details-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 560px) {
   .about-business-shell {
-    padding: 10px;
+    padding: 14px 12px;
   }
 
   .about-process-card {
