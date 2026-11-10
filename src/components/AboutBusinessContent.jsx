@@ -31,7 +31,7 @@ const process = [
   { title: "Installation", description: "Professional installation at your location.", icon: Wrench },
 ];
 
-function AboutBusinessContent({ darkMode = false }) {
+function AboutBusinessContent({ darkMode = false, scrollCue = null }) {
   const { phone, phoneHref, address, addressHref, email, emailHref } = useAdminContactPhone();
 
   return (
@@ -58,7 +58,9 @@ function AboutBusinessContent({ darkMode = false }) {
           </ol>
         </section>
 
-        <div className="about-details-grid">
+        {scrollCue}
+
+        <div id="about-details" className="about-details-grid">
           <section className="about-info-card about-services-card" aria-labelledby="about-services-title">
             <header className="about-info-header">
               <span className="about-info-icon"><Wrench size={19} aria-hidden="true" /></span>

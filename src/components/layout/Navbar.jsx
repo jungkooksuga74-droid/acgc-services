@@ -23,7 +23,7 @@ function Navbar() {
 
   return (
     <>
-      <header className={`admin-navbar flex w-full min-w-0 items-center justify-between gap-2 pl-3 pr-5 py-2 shadow sm:px-6 sm:py-4 ${darkMode ? "bg-slate-900 text-white" : "bg-white text-slate-900"}`}>
+      <header className={`admin-navbar flex w-full min-w-0 items-center justify-between gap-1 px-2 py-2 shadow sm:gap-2 sm:px-6 sm:py-4 ${darkMode ? "bg-slate-900 text-white" : "bg-white text-slate-900"}`}>
 
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
           <div className="flex min-w-0 items-center gap-2 sm:hidden">
@@ -62,7 +62,7 @@ function Navbar() {
             {canOpenProfile && <button
               type="button"
               onClick={() => navigate("/profile")}
-              className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border transition sm:hidden ${darkMode ? "border-slate-700 text-slate-200 hover:bg-slate-800" : "border-slate-200 text-slate-700 hover:bg-slate-100"}`}
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-xl border transition sm:hidden ${darkMode ? "border-slate-700 text-slate-200 hover:bg-slate-800" : "border-slate-200 text-slate-700 hover:bg-slate-100"}`}
               aria-label="Open profile"
               title="Profile"
             >
@@ -71,7 +71,7 @@ function Navbar() {
             <button
               type="button"
               onClick={() => setLogoutConfirmOpen(true)}
-              className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border transition ${darkMode ? "border-red-500/40 text-red-300 hover:bg-red-500/10" : "border-red-200 text-red-700 hover:bg-red-50"}`}
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-xl border transition sm:h-10 sm:w-10 ${darkMode ? "border-red-500/40 text-red-300 hover:bg-red-500/10" : "border-red-200 text-red-700 hover:bg-red-50"}`}
               aria-label="Log out"
               title="Log out"
             >

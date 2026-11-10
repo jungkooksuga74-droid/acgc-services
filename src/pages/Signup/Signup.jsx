@@ -204,7 +204,7 @@ function Signup() {
           {privacyAcknowledged ? (
           <>
           <div className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col">
-            <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">Create your ACGC account</h1>
+            <h1 className="mt-1 text-xl font-black tracking-tight text-slate-900 sm:text-2xl">Create your ACGC account</h1>
             <p className="mt-1 text-xs leading-5 text-gray-500">Verify your email to activate your profile.</p>
 
             <form className="mt-3 flex min-h-0 flex-1 flex-col lg:mt-4" onSubmit={handleSubmit}>
@@ -219,7 +219,7 @@ function Signup() {
                 <Field icon={AtSign} label="Username *" name="username" minLength={6} maxLength={12} pattern="[A-Za-z0-9._-]{6,12}" title="Use 6-12 letters, numbers, dots, underscores, or hyphens." value={formData.username} onChange={handleChange} placeholder="Choose a username" inputClass={inputClass} />
               </div>
 
-              <div className="mt-1.5"><FullAddressField minimumLength={0} icon={MapPin} label="Street Address *" name="street_address" value={formData.street_address} onChange={handleChange} placeholder="Enter your street address" className={inputClass} /></div>
+              <div className="mt-1.5"><FullAddressField minimumLength={0} icon={MapPin} label="Street Address *" name="street_address" value={formData.street_address} onChange={handleChange} placeholder="Enter your street address" className={`${inputClass} text-xs font-semibold`} /></div>
               <div className="mt-1.5 grid gap-1.5 md:grid-cols-2">
                 <Field icon={Building2} label="City *" name="city" maxLength={40} value={formData.city} onChange={handleChange} placeholder="Enter your city" inputClass={inputClass} />
                 <Field icon={MapPin} label="Province *" name="province" maxLength={40} value={formData.province} onChange={handleChange} placeholder="Enter your province" inputClass={inputClass} />
@@ -266,9 +266,6 @@ function Signup() {
                       </p>
                     </div>
                   ) : null}
-                  <p className="mt-1 text-[11px] leading-4 text-slate-500">
-                    {PASSWORD_POLICY_HINT}
-                  </p>
                 </div>
                 <div>
                   <Field
@@ -293,6 +290,9 @@ function Signup() {
                     </p>
                   ) : null}
                 </div>
+                <p className="text-[11px] leading-4 text-slate-500 md:col-span-2 md:whitespace-nowrap">
+                  {PASSWORD_POLICY_HINT}
+                </p>
               </div>
 
               </div>

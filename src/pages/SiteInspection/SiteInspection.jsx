@@ -791,8 +791,11 @@ const createContractPrintClone = (element) => {
   clone.style.overflow = "visible";
   clone.style.position = "relative";
   clone.style.maxHeight = "none";
-  clone.style.backgroundColor = "#ffffff";
-  clone.style.color = "#1f2937";
+  clone.style.backgroundColor = "#fffefc";
+  clone.style.color = "#1b1d27";
+  clone.style.border = "0";
+  clone.style.borderRadius = "0";
+  clone.style.boxShadow = "none";
   const wrapper = document.createElement("div");
   wrapper.style.position = "fixed";
   wrapper.style.left = "-9999px";
@@ -802,12 +805,6 @@ const createContractPrintClone = (element) => {
   wrapper.style.zIndex = "-1";
   wrapper.appendChild(clone);
   document.body.appendChild(wrapper);
-  clone.querySelectorAll("*").forEach((child) => {
-    const fontSize = Number.parseFloat(window.getComputedStyle(child).fontSize);
-    if (fontSize >= 8 && fontSize < 11) {
-      child.style.fontSize = "11px";
-    }
-  });
 
   return { wrapper, clone };
 };
@@ -3494,17 +3491,20 @@ function SiteInspection() {
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
         const imageProperties = pdf.getImageProperties(contractImage);
-        const imageHeight = (imageProperties.height * pdfWidth) / imageProperties.width;
+        const pageMargin = 28.35;
+        const printableWidth = pdfWidth - pageMargin * 2;
+        const printableHeight = pdfHeight - pageMargin * 2;
+        const imageHeight = (imageProperties.height * printableWidth) / imageProperties.width;
         let heightLeft = imageHeight;
-        let position = 0;
+        let position = pageMargin;
 
-        pdf.addImage(contractImage, "JPEG", 0, position, pdfWidth, imageHeight);
-        heightLeft -= pdfHeight;
+        pdf.addImage(contractImage, "JPEG", pageMargin, position, printableWidth, imageHeight);
+        heightLeft -= printableHeight;
         while (heightLeft > 0) {
-          position -= pdfHeight;
+          position -= printableHeight;
           pdf.addPage();
-          pdf.addImage(contractImage, "JPEG", 0, position, pdfWidth, imageHeight);
-          heightLeft -= pdfHeight;
+          pdf.addImage(contractImage, "JPEG", pageMargin, position, printableWidth, imageHeight);
+          heightLeft -= printableHeight;
         }
 
         const pdfDataUrl = pdf.output("datauristring");
@@ -3548,7 +3548,7 @@ function SiteInspection() {
         toast.error("Please allow popups to print the contract.");
         return;
       }
-      printWindow.document.write(`<!doctype html><html><head><title>ACGC Contract</title><style>html,body{margin:0;padding:0;background:#fff;}img{display:block;width:100%;height:auto;}@media print{body{padding:0;}}</style></head><body><img src="${image}" alt="ACGC contract" /></body></html>`);
+      printWindow.document.write(`<!doctype html><html><head><title>ACGC Contract</title><style>@page{size:A4 portrait;margin:10mm;}html,body{margin:0;padding:0;background:#fff;}img{display:block;width:100%;height:auto;print-color-adjust:exact;-webkit-print-color-adjust:exact;}</style></head><body><img src="${image}" alt="ACGC contract" /></body></html>`);
       printWindow.document.close();
       printWindow.onload = () => {
         printWindow.focus();
@@ -4400,7 +4400,7 @@ function SiteInspection() {
           title="View inspection"
           aria-label="View inspection"
         >
-          <Search size={20} strokeWidth={2.6} />
+          <Eye size={20} strokeWidth={2.6} />
         </button>
         {!isCancelledTab && (
           <>
@@ -4804,7 +4804,8 @@ function SiteInspection() {
 
           <div className={`mt-6 overflow-hidden rounded-3xl border shadow-sm ${darkMode ? "border-slate-700 bg-[#071f2f] shadow-[0_18px_48px_rgba(15,23,42,0.42)]" : "border-slate-200 bg-white"}`}>
             <div className={`border-b px-6 py-4 ${darkMode ? "border-slate-700 bg-[#0b2338]" : "border-slate-200 bg-slate-50"}`}>
-              <div role="tablist" aria-label="Filter site inspection records" className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
+                <div role="tablist" aria-label="Filter site inspection records" className="hidden items-center gap-2 md:flex">
                 {[
                   { key: "site", label: "Site Inspections", count: inspections.length },
                   { key: "cancelled", label: "Cancelled", count: cancelledInspections.length },
@@ -4823,7 +4824,20 @@ function SiteInspection() {
                     </span>
                   </button>
                 ))}
-                <div aria-label="Order priority legend" className="site-inspection-order-legend ml-auto flex w-full flex-wrap items-center justify-start gap-x-2 gap-y-2 sm:w-auto sm:justify-end">
+                </div>
+                <div className="w-full md:hidden">
+                  <FilterDropdown
+                    label="Site inspection view"
+                    value={activeTab}
+                    onChange={setActiveTab}
+                    darkMode={darkMode}
+                    options={[
+                      ["site", `Site Inspections (${inspections.length})`],
+                      ["cancelled", `Cancelled (${cancelledInspections.length})`],
+                    ]}
+                  />
+                </div>
+                <div aria-label="Order priority legend" className="site-inspection-order-legend flex w-full flex-wrap items-center justify-start gap-x-2 gap-y-2 md:ml-auto md:w-auto md:justify-end">
                   <span className={`shrink-0 text-[10.5px] font-bold uppercase tracking-wide ${darkMode ? "text-slate-400" : "text-slate-500"}`}>LEGEND</span>
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
                     {ORDER_TYPE_LEGEND.map((orderType, index) => (

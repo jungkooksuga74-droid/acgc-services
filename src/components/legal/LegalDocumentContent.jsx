@@ -1,4 +1,4 @@
-function LegalDocumentContent({ document, privacyContactEmail }) {
+function LegalDocumentContent({ document, privacyContactEmail, fullPagePath, completeDocumentLabel }) {
   return (
     <div className="space-y-6">
       {document.sections.map((section) => (
@@ -39,6 +39,13 @@ function LegalDocumentContent({ document, privacyContactEmail }) {
                 </a>
               </li>
             ))}
+            {fullPagePath && completeDocumentLabel ? (
+              <li>
+                <a href={fullPagePath} target="_blank" rel="noreferrer" className="font-semibold text-red-700 underline underline-offset-2 hover:text-red-900">
+                  {completeDocumentLabel}
+                </a>
+              </li>
+            ) : null}
           </ul>
         </section>
       ) : null}

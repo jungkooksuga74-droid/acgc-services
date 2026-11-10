@@ -1163,6 +1163,9 @@ function Transactions() {
     clone.style.position = "relative";
     clone.style.maxHeight = "none";
     clone.style.maxWidth = "794px";
+    clone.style.border = "0";
+    clone.style.borderRadius = "0";
+    clone.style.boxShadow = "none";
 
     const wrapper = document.createElement("div");
     wrapper.style.position = "fixed";
@@ -1199,7 +1202,7 @@ function Transactions() {
         return;
       }
 
-      printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Contract Print</title><style>html,body{margin:0;padding:0;background:#fff;}body{padding:12mm;}img{width:100%;height:auto;display:block;}@media print{body{padding:0;}.no-print{display:none !important;}}</style></head><body><img src="${dataUrl}" alt="Contract" /></body></html>`);
+      printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Contract Print</title><style>@page{size:A4 portrait;margin:10mm;}html,body{margin:0;padding:0;background:#fff;}img{width:100%;height:auto;display:block;print-color-adjust:exact;-webkit-print-color-adjust:exact;}.no-print{display:none !important;}</style></head><body><img src="${dataUrl}" alt="Contract" /></body></html>`);
       printWindow.document.close();
       printWindow.focus();
 
@@ -1234,19 +1237,22 @@ function Transactions() {
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
       const imgProps = pdf.getImageProperties(dataUrl);
-      const imgWidth = pdfWidth;
-      const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      const pageMargin = 28.35;
+      const printableWidth = pdfWidth - pageMargin * 2;
+      const printableHeight = pdfHeight - pageMargin * 2;
+      const imgWidth = printableWidth;
+      const imgHeight = (imgProps.height * printableWidth) / imgProps.width;
 
       let heightLeft = imgHeight;
-      let position = 0;
-      pdf.addImage(dataUrl, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight;
+      let position = pageMargin;
+      pdf.addImage(dataUrl, "PNG", pageMargin, position, imgWidth, imgHeight);
+      heightLeft -= printableHeight;
 
       while (heightLeft > 0) {
-        position -= pdfHeight;
+        position -= printableHeight;
         pdf.addPage();
-        pdf.addImage(dataUrl, "PNG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
+        pdf.addImage(dataUrl, "PNG", pageMargin, position, imgWidth, imgHeight);
+        heightLeft -= printableHeight;
       }
 
       pdf.save(`contract-${contractPreviewOrder?.tracking || contractPreviewOrder?._id || "export"}.pdf`);
@@ -1271,6 +1277,9 @@ function Transactions() {
     clone.style.overflow = "visible";
     clone.style.position = "relative";
     clone.style.maxHeight = "none";
+    clone.style.border = "0";
+    clone.style.borderRadius = "0";
+    clone.style.boxShadow = "none";
 
     const wrapper = document.createElement("div");
     wrapper.style.position = "fixed";
@@ -2439,7 +2448,7 @@ function Transactions() {
                             <td className={`px-4 py-4 text-sm font-medium ${darkMode ? "text-slate-300" : "text-slate-700"}`}>{formatCancelledStatus(order.cancelled_by_name)}</td>
                             <td className="px-4 py-4 text-center">
                               <button type="button" title="View Transaction" aria-label={`View cancelled project ${order.tracking || "details"}`} onClick={() => openContractModal(order)} className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${darkMode ? "bg-blue-500/15 text-blue-300" : "bg-blue-100 text-blue-600"}`}>
-                                <Search size={18} aria-hidden="true" />
+                                <Eye size={18} aria-hidden="true" />
                               </button>
                             </td>
                           </tr>
@@ -2489,7 +2498,7 @@ function Transactions() {
                               >
                                 <div className={`mx-auto flex flex-nowrap justify-center gap-2 overflow-hidden transition-[width,opacity,transform] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${showTransactionActions ? "translate-x-0 opacity-100" : "translate-x-2 opacity-0 pointer-events-none"}`} style={{ width: showTransactionActions ? "168px" : "0px" }}>
                                   <button type="button" onClick={() => setFeedbackPreviewOrder(order)} className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${darkMode ? "bg-blue-500/15 text-blue-300 hover:bg-blue-500/25" : "bg-blue-100 text-blue-600 hover:bg-blue-200"}`} aria-label={`View feedback for ${order.reviewProductName || "order"} from ${customerName}`} title="View feedback">
-                                    <Search size={20} strokeWidth={2.6} aria-hidden="true" />
+                                    <Eye size={20} strokeWidth={2.6} aria-hidden="true" />
                                   </button>
                                   {canManageFeedbackVisibility && <button type="button" onClick={() => openFeedbackReply(order)} className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${darkMode ? "bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25" : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"}`} aria-label={`${order.review?.adminResponse ? "Edit" : "Reply to"} feedback for ${order.reviewProductName || "order"} from ${customerName}`} title={order.review?.adminResponse ? "Edit Admin Response" : "Reply to Feedback"}>
                                     <MessageSquare size={17} aria-hidden="true" />
@@ -2526,7 +2535,7 @@ function Transactions() {
                               <td
                                 className={`${showTransactionActions ? "p-4" : "px-1 py-4"} text-right transition-[width,padding] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none`}
                                 style={{ width: showTransactionActions ? `${190 + ((canGenerateProjectReceipt || order.project_payment_receipts?.length > 0) ? 36 : 0) + (canCancelTransactions ? 36 : 0)}px` : "56px" }}
-                              ><div className={`ml-auto flex flex-nowrap justify-end gap-2 overflow-hidden transition-[width,opacity,transform] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${showTransactionActions ? "translate-x-0 opacity-100" : "translate-x-2 opacity-0 pointer-events-none"}`} style={{ width: showTransactionActions ? `${128 + ((canGenerateProjectReceipt || order.project_payment_receipts?.length > 0) ? 36 : 0) + (canCancelTransactions ? 36 : 0)}px` : "0px" }}><button title="View Transaction" onClick={() => openContractModal(order)} className="shrink-0 p-2 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 transition"><Search size={20} strokeWidth={2.6} /></button>{isFullyPaid ? (<button type="button" title="Fully paid" aria-label="Fully paid. Payment editing is locked." disabled className={`shrink-0 cursor-not-allowed rounded-lg p-2 ${darkMode ? "bg-slate-700 text-slate-400" : "bg-slate-100 text-slate-500"}`}><Lock size={18} aria-hidden="true" /></button>) : (<button type="button" title="Add Payment" aria-label="Add Payment" onClick={() => openEditPaymentModal(order)} className="shrink-0 p-2 rounded-lg bg-violet-100 text-violet-700 hover:bg-violet-200 transition"><Pencil size={18} /></button>)}<button type="button" title="View Contract" aria-label="View Contract" onClick={() => openReadOnlyContract(order)} className="shrink-0 p-2 rounded-lg bg-amber-100 text-amber-700 hover:bg-amber-200 transition"><FileText size={18} /></button>{(canGenerateProjectReceipt || order.project_payment_receipts?.length > 0) && <button type="button" title={canGenerateProjectReceipt ? "Generate or view project payment receipt" : "View project payment receipt"} aria-label={`View project payment receipt for ${order.tracking || "project"}`} onClick={() => (canGenerateProjectReceipt ? void openProjectPaymentReceipt(order) : openSavedProjectPaymentReceipt(order))} className="shrink-0 rounded-lg bg-emerald-100 p-2 text-emerald-700 transition hover:bg-emerald-200"><Receipt size={18} aria-hidden="true" /></button>}{isEligibleForAdminCancellation(order) && <button type="button" title="Cancel Transaction" aria-label={`Cancel project ${order.tracking || "transaction"}`} onClick={() => { setCancelTransactionOrder(order); setCancellationReason(""); }} className={`shrink-0 rounded-lg p-2 ${darkMode ? "bg-red-500/15 text-red-300 hover:bg-red-500/25" : "bg-red-100 text-red-700 hover:bg-red-200"}`}><Ban size={18} aria-hidden="true" /></button>}</div></td>
+                              ><div className={`ml-auto flex flex-nowrap justify-end gap-2 overflow-hidden transition-[width,opacity,transform] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${showTransactionActions ? "translate-x-0 opacity-100" : "translate-x-2 opacity-0 pointer-events-none"}`} style={{ width: showTransactionActions ? `${128 + ((canGenerateProjectReceipt || order.project_payment_receipts?.length > 0) ? 36 : 0) + (canCancelTransactions ? 36 : 0)}px` : "0px" }}><button title="View Transaction" onClick={() => openContractModal(order)} className="shrink-0 p-2 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 transition"><Eye size={20} strokeWidth={2.6} /></button>{isFullyPaid ? (<button type="button" title="Fully paid" aria-label="Fully paid. Payment editing is locked." disabled className={`shrink-0 cursor-not-allowed rounded-lg p-2 ${darkMode ? "bg-slate-700 text-slate-400" : "bg-slate-100 text-slate-500"}`}><Lock size={18} aria-hidden="true" /></button>) : (<button type="button" title="Add Payment" aria-label="Add Payment" onClick={() => openEditPaymentModal(order)} className="shrink-0 p-2 rounded-lg bg-violet-100 text-violet-700 hover:bg-violet-200 transition"><Pencil size={18} /></button>)}<button type="button" title="View Contract" aria-label="View Contract" onClick={() => openReadOnlyContract(order)} className="shrink-0 p-2 rounded-lg bg-amber-100 text-amber-700 hover:bg-amber-200 transition"><FileText size={18} /></button>{(canGenerateProjectReceipt || order.project_payment_receipts?.length > 0) && <button type="button" title={canGenerateProjectReceipt ? "Generate or view project payment receipt" : "View project payment receipt"} aria-label={`View project payment receipt for ${order.tracking || "project"}`} onClick={() => (canGenerateProjectReceipt ? void openProjectPaymentReceipt(order) : openSavedProjectPaymentReceipt(order))} className="shrink-0 rounded-lg bg-emerald-100 p-2 text-emerald-700 transition hover:bg-emerald-200"><Receipt size={18} aria-hidden="true" /></button>}{isEligibleForAdminCancellation(order) && <button type="button" title="Cancel Transaction" aria-label={`Cancel project ${order.tracking || "transaction"}`} onClick={() => { setCancelTransactionOrder(order); setCancellationReason(""); }} className={`shrink-0 rounded-lg p-2 ${darkMode ? "bg-red-500/15 text-red-300 hover:bg-red-500/25" : "bg-red-100 text-red-700 hover:bg-red-200"}`}><Ban size={18} aria-hidden="true" /></button>}</div></td>
                             </>
                           )}
                         </tr>
@@ -2562,7 +2571,7 @@ function Transactions() {
                         {order.review?.hiddenFromCustomers === true && <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-800">Hidden from customers</span>}
                         <div className="flex gap-2">
                           <button type="button" onClick={() => setFeedbackPreviewOrder(order)} aria-label={`View feedback for ${order.reviewProductName || "order"}`} className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${darkMode ? "bg-blue-500/15 text-blue-300" : "bg-blue-100 text-blue-600"}`}>
-                            <Search size={20} strokeWidth={2.6} aria-hidden="true" />
+                            <Eye size={20} strokeWidth={2.6} aria-hidden="true" />
                           </button>
                           {canManageFeedbackVisibility && <button type="button" onClick={() => openFeedbackReply(order)} aria-label={`${order.review?.adminResponse ? "Edit" : "Reply to"} feedback for ${order.reviewProductName || "order"}`} title={order.review?.adminResponse ? "Edit Admin Response" : "Reply to Feedback"} className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${darkMode ? "bg-emerald-500/15 text-emerald-300" : "bg-emerald-100 text-emerald-700"}`}>
                             <MessageSquare size={17} aria-hidden="true" />
@@ -2597,7 +2606,7 @@ function Transactions() {
                         <div><dt className={`text-[10px] font-bold uppercase tracking-wide ${darkMode ? "text-slate-400" : "text-slate-500"}`}>Cancelled By</dt><dd className="mt-1 font-medium">{formatCancelledStatus(order.cancelled_by_name)}</dd></div>
                       </dl>
                       <div className="mt-3 flex justify-end">
-                        <button type="button" title="View Transaction" aria-label={`View cancelled project ${order.tracking || "details"}`} onClick={() => openContractModal(order)} className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${darkMode ? "bg-blue-500/15 text-blue-300" : "bg-blue-100 text-blue-600"}`}><Search size={18} aria-hidden="true" /></button>
+                        <button type="button" title="View Transaction" aria-label={`View cancelled project ${order.tracking || "details"}`} onClick={() => openContractModal(order)} className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${darkMode ? "bg-blue-500/15 text-blue-300" : "bg-blue-100 text-blue-600"}`}><Eye size={18} aria-hidden="true" /></button>
                       </div>
                     </article>
                   );
@@ -2646,7 +2655,7 @@ function Transactions() {
                       </div>
                     )}
                     <div className="mt-3 flex justify-end gap-2">
-                      <button title="View Transaction" onClick={() => openContractModal(order)} className="p-2 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 transition"><Search size={20} strokeWidth={2.6} /></button>
+                      <button title="View Transaction" onClick={() => openContractModal(order)} className="p-2 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 transition"><Eye size={20} strokeWidth={2.6} /></button>
                       {isFullyPaid ? (
                         <button type="button" title="Fully paid" aria-label="Fully paid. Payment editing is locked." disabled className="cursor-not-allowed rounded-lg bg-slate-100 p-2 text-slate-500">
                           <Lock size={18} aria-hidden="true" />

@@ -22,14 +22,17 @@ export default function CustomerDropdown({ value, onChange, children, className 
     if (!rect) return;
     const spaceBelow = window.innerHeight - rect.bottom - 8;
     const spaceAbove = rect.top - 8;
-    const openAbove = spaceBelow < Math.min(240, options.length * 40 + 12) && spaceAbove > spaceBelow;
-    const maxHeight = Math.max(96, Math.min(240, (openAbove ? spaceAbove : spaceBelow) - 8));
+    const desiredHeight = Math.min(240, options.length * 36 + 12);
+    const openAbove = spaceBelow < desiredHeight && spaceAbove > spaceBelow;
+    const availableSpace = openAbove ? spaceAbove : spaceBelow;
+    const menuHeight = Math.min(desiredHeight, Math.max(48, availableSpace - 8));
     setMenuStyle({
       position: "fixed",
       left: Math.max(8, Math.min(rect.left, window.innerWidth - rect.width - 8)),
-      top: openAbove ? Math.max(8, rect.top - maxHeight - 8) : Math.min(rect.bottom + 6, window.innerHeight - maxHeight - 8),
+      top: openAbove ? Math.max(8, rect.top - menuHeight - 6) : Math.min(rect.bottom + 6, window.innerHeight - menuHeight - 8),
       width: rect.width,
-      maxHeight,
+      height: menuHeight,
+      maxHeight: menuHeight,
     });
   };
 

@@ -576,10 +576,10 @@ function Dashboard() {
     <div className="flex h-screen overflow-hidden bg-gray-100">
       <Sidebar isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen((open) => !open)} />
 
-      <div className="flex-1 min-h-0 flex flex-col">
+      <div className="min-w-0 flex-1 min-h-0 flex flex-col">
         <Navbar />
 
-        <main className="min-h-0 flex-1 overflow-y-auto p-4 !pb-[calc(8rem+env(safe-area-inset-bottom))] sm:p-6 sm:!pb-[calc(10rem+env(safe-area-inset-bottom))] lg:!pb-24">
+        <main className="min-h-0 min-w-0 w-full flex-1 overflow-y-auto p-4 !pb-[calc(8rem+env(safe-area-inset-bottom))] sm:p-6 sm:!pb-[calc(10rem+env(safe-area-inset-bottom))] lg:!pb-24">
           {toast.open && (
             <div className="fixed right-6 top-6 z-50 w-full max-w-sm rounded-2xl border px-4 py-3 shadow-xl transition duration-200 ease-out bg-white"
               role="status"
@@ -594,15 +594,15 @@ function Dashboard() {
             </div>
           )}
 
-          <div className="mt-4 grid grid-cols-1 items-stretch gap-4 sm:mt-6 sm:gap-6 xl:grid-cols-2">
+          <div className="mt-4 grid min-w-0 grid-cols-1 items-stretch gap-4 sm:mt-6 sm:gap-6 xl:grid-cols-2">
             <AdminPageHeader
               title="Dashboard"
               description="Manage inspections, projects, warranties and products from one administrative workspace."
               mobileCompact
-              className="h-full"
+              className="h-full min-w-0"
             />
 
-            <div className={`admin-quick-actions-panel self-start ${darkMode ? "is-dark" : ""}`}>
+            <div className={`admin-quick-actions-panel min-w-0 self-start ${darkMode ? "is-dark" : ""}`}>
               <h2 className="admin-quick-actions-title">Quick Actions</h2>
               <p className="admin-quick-actions-subtitle">Shortcuts</p>
 

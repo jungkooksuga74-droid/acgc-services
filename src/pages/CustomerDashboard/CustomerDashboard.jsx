@@ -457,6 +457,8 @@ function CustomerDashboard() {
   });
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [paymentHistoryExpandedByOrder, setPaymentHistoryExpandedByOrder] = useState({});
+  const paymentHistorySignatureByOrderRef = useRef(new Map());
   const notifiedContractVersionsRef = useRef(null);
   const hasLoadedCustomerOrdersRef = useRef(false);
   const [repairRequests, setRepairRequests] = useState([]);
@@ -505,7 +507,9 @@ function CustomerDashboard() {
   const [productTypeFilter, setProductTypeFilter] = useState(() => initialDashboardParams.get("productType") || "All");
   const [productPage, setProductPage] = useState(() => Math.max(1, Number(initialDashboardParams.get("productPage")) || 1));
   const [productsPerPage, setProductsPerPage] = useState(() => {
-    const requested = Number(initialDashboardParams.get("productPerPage"));
+    const requestedValue = initialDashboardParams.get("productPerPage");
+    if (requestedValue === "all") return 0;
+    const requested = Number(requestedValue);
     return [4, 8, 12, 16].includes(requested) ? requested : 8;
   });
   const browseFiltersRef = useRef({ searchQuery, categoryFilter, productTypeFilter, productsPerPage });
@@ -654,6 +658,42 @@ function CustomerDashboard() {
   const productDetailsDirtyRef = useRef(false);
   const [showOrderSuccessModal, setShowOrderSuccessModal] = useState(false);
   const [orderSuccessData, setOrderSuccessData] = useState(null);
+  const orderSuccessDialogRef = useRef(null);
+  const orderSuccessPrimaryButtonRef = useRef(null);
+  const orderSuccessDialogOpen = showBatchSuccessModal || (showOrderSuccessModal && Boolean(orderSuccessData));
+
+  useEffect(() => {
+    if (!orderSuccessDialogOpen) return undefined;
+    const previouslyFocusedElement = document.activeElement;
+    orderSuccessPrimaryButtonRef.current?.focus();
+    return () => {
+      if (previouslyFocusedElement?.isConnected) previouslyFocusedElement.focus();
+    };
+  }, [orderSuccessDialogOpen]);
+
+  const trapOrderSuccessDialogFocus = (event) => {
+    if (event.key !== "Tab") return;
+    const dialog = orderSuccessDialogRef.current;
+    if (!dialog) return;
+    const focusableElements = Array.from(dialog.querySelectorAll(
+      'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    )).filter((element) => !element.hasAttribute("hidden") && element.getAttribute("aria-hidden") !== "true");
+    if (!focusableElements.length) {
+      event.preventDefault();
+      dialog.focus();
+      return;
+    }
+
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+    if (event.shiftKey && document.activeElement === firstElement) {
+      event.preventDefault();
+      lastElement.focus();
+    } else if (!event.shiftKey && document.activeElement === lastElement) {
+      event.preventDefault();
+      firstElement.focus();
+    }
+  };
 
   const getProductDetailsDraftSnapshot = (form = {}) => createUnsavedSnapshot({
     unit: form.unit,
@@ -1463,9 +1503,11 @@ function CustomerDashboard() {
         searchQuery: params.get("productQ") || "",
         categoryFilter: params.get("productCategory") || "All",
         productTypeFilter: params.get("productType") || "All",
-        productsPerPage: [4, 8, 12, 16].includes(Number(params.get("productPerPage")))
-          ? Number(params.get("productPerPage"))
-          : 8,
+        productsPerPage: params.get("productPerPage") === "all"
+          ? 0
+          : [4, 8, 12, 16].includes(Number(params.get("productPerPage")))
+            ? Number(params.get("productPerPage"))
+            : 8,
       };
       browseFiltersRef.current = restoredFilters;
       setSearchQuery(restoredFilters.searchQuery);
@@ -1508,7 +1550,7 @@ function CustomerDashboard() {
     else params.delete("productType");
     if (productPage > 1) params.set("productPage", String(productPage));
     else params.delete("productPage");
-    if (productsPerPage !== 8) params.set("productPerPage", String(productsPerPage));
+    if (productsPerPage !== 8) params.set("productPerPage", productsPerPage === 0 ? "all" : String(productsPerPage));
     else params.delete("productPerPage");
     if (orderFilter !== "all") params.set("orderFilter", orderFilter);
     else params.delete("orderFilter");
@@ -2007,7 +2049,8 @@ function CustomerDashboard() {
     const matchesType = productTypeFilter === "All" || String(product.product_type || product.type || "").toLowerCase() === productTypeFilter.toLowerCase();
     return matchesSearch && matchesCategory && matchesType;
   });
-  const paginatedProducts = paginateItems(visibleProducts, productPage, productsPerPage);
+  const effectiveProductsPerPage = productsPerPage === 0 ? Math.max(visibleProducts.length, 1) : productsPerPage;
+  const paginatedProducts = paginateItems(visibleProducts, productPage, effectiveProductsPerPage);
   const displayedProducts = isMobile ? visibleProducts : paginatedProducts.items;
 
   useEffect(() => {
@@ -2076,6 +2119,34 @@ function CustomerDashboard() {
       unsubscribeRealtime();
     };
   }, [orderOwnerId]);
+
+  useEffect(() => {
+    if (!orderOwnerId) return;
+
+    const changedPaymentHistoryKeys = [];
+    orders.forEach((order, index) => {
+      const id = String(order?._id ?? order?.id ?? order?.tracking ?? `order-${index}`);
+      const key = `${orderOwnerId}:${id}`;
+      const signature = JSON.stringify(Array.isArray(order?.payment_records) ? order.payment_records : []);
+      const previousSignature = paymentHistorySignatureByOrderRef.current.get(key);
+
+      if (previousSignature !== undefined && previousSignature !== signature) {
+        changedPaymentHistoryKeys.push(key);
+      }
+
+      paymentHistorySignatureByOrderRef.current.set(key, signature);
+    });
+
+    if (changedPaymentHistoryKeys.length > 0) {
+      setPaymentHistoryExpandedByOrder((current) => {
+        const next = { ...current };
+        changedPaymentHistoryKeys.forEach((key) => {
+          next[key] = true;
+        });
+        return next;
+      });
+    }
+  }, [orders, orderOwnerId]);
 
   useEffect(() => {
     if (!hasLoadedCustomerOrdersRef.current) return;
@@ -4027,6 +4098,7 @@ function CustomerDashboard() {
       file,
       fileName: file ? file.name : "",
     }));
+    if (file) setPaymentProofError("");
   };
 
   const openCustomerPaymentProofPreview = (proofUrl, fileName = "Payment proof") => {
@@ -4069,6 +4141,11 @@ function CustomerDashboard() {
 
   const submitPaymentProof = async (order) => {
     if (paymentProofSubmittingRef.current) return;
+
+    if (!paymentProofForm.file) {
+      setPaymentProofError("A payment proof image or PDF is required.");
+      return;
+    }
 
     const paymentSummary = getPaymentSummary(order);
     const amountValidation = validateCustomerPaymentAmount(
@@ -4587,61 +4664,37 @@ function CustomerDashboard() {
   const renderOrderConfirmationProducts = (items) => {
     const orderedItems = Array.isArray(items) ? items : [];
     if (!orderedItems.length) return null;
-    const isSingleItem = orderedItems.length === 1;
 
     return (
-      <div
-        className={`mt-5 w-full ${isSingleItem ? "" : "max-h-60 overflow-y-auto pr-1"}`}
-        role="list"
-        aria-label="Ordered products"
-      >
-        <div className={isSingleItem ? "space-y-2.5" : "grid grid-cols-2 gap-2.5 sm:grid-cols-3"}>
-          {orderedItems.map((item, index) => {
-            const productName = item.name || item.product_name || item.product_type || "Product";
-            const productId = item.product_id?._id || item.product_id || item._id || productName;
-            return isSingleItem ? (
-              <div
-                key={`${productId}-${index}`}
-                role="listitem"
-                className={`flex items-center gap-4 rounded-2xl border p-3 text-left ${darkMode ? "border-slate-700 bg-slate-800" : "border-slate-200 bg-slate-50"}`}
-              >
+      <div className="order-success-items" role="list" aria-label="Ordered products">
+        {orderedItems.map((item, index) => {
+          const productName = item.name || item.product_name || item.product_type || "Product";
+          const productId = item.product_id?._id || item.product_id || item._id || productName;
+          return (
+            <div
+              key={`${productId}-${index}`}
+              role="listitem"
+              className="order-success-item"
+              style={{ animationDelay: `${Math.min(index, 3) * 0.08}s` }}
+            >
+              <div className="order-success-image-wrap">
                 <img
                   src={getOrderItemImage(item)}
                   alt={productName}
                   onError={handleProductImageError}
-                  className="h-24 w-28 shrink-0 rounded-xl object-cover"
+                  className="order-success-image"
                 />
-                <div className="min-w-0">
-                  <p className={`line-clamp-2 text-sm font-bold leading-5 ${darkMode ? "text-slate-100" : "text-slate-900"}`}>
-                    {productName}
-                  </p>
-                  <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${darkMode ? "bg-slate-700 text-slate-200" : "bg-white text-slate-600 shadow-sm"}`}>
-                    Qty {Math.max(1, Number(item.quantity) || 1)}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div
-                key={`${productId}-${index}`}
-                role="listitem"
-                className={`min-w-0 overflow-hidden rounded-2xl border p-2.5 text-left ${darkMode ? "border-slate-700 bg-slate-800" : "border-slate-200 bg-slate-50"}`}
-              >
-                <img
-                  src={getOrderItemImage(item)}
-                  alt={productName}
-                  onError={handleProductImageError}
-                  className="h-24 w-full rounded-xl object-cover"
-                />
-                <p className={`mt-2 line-clamp-2 min-h-10 text-xs font-bold leading-5 ${darkMode ? "text-slate-100" : "text-slate-900"}`}>
-                  {productName}
-                </p>
-                <span className={`mt-1 inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ${darkMode ? "bg-slate-700 text-slate-200" : "bg-white text-slate-600 shadow-sm"}`}>
+                <span className="order-success-quantity">
                   Qty {Math.max(1, Number(item.quantity) || 1)}
                 </span>
+                <span className="order-success-item-check" aria-hidden="true">
+                  <Check size={12} strokeWidth={3} />
+                </span>
               </div>
-            );
-          })}
-        </div>
+              <p className="order-success-item-name">{productName}</p>
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -4905,6 +4958,9 @@ function CustomerDashboard() {
     clone.style.maxHeight = "none";
     clone.style.overflow = "visible";
     clone.style.position = "relative";
+    clone.style.border = "0";
+    clone.style.borderRadius = "0";
+    clone.style.boxShadow = "none";
 
     const wrapper = document.createElement("div");
     wrapper.style.position = "fixed";
@@ -4965,7 +5021,7 @@ function CustomerDashboard() {
         toast.error("Please allow popups to print the accepted contract.");
         return;
       }
-      printWindow.document.write(`<!doctype html><html><head><title>Accepted Contract</title><style>html,body{margin:0;padding:0;background:#fff;}body{padding:12mm;}img{width:100%;height:auto;display:block;}@media print{body{padding:0;}}</style></head><body><img src="${dataUrl}" alt="Accepted contract" /></body></html>`);
+      printWindow.document.write(`<!doctype html><html><head><title>Accepted Contract</title><style>@page{size:A4 portrait;margin:10mm;}html,body{margin:0;padding:0;background:#fff;}img{width:100%;height:auto;display:block;print-color-adjust:exact;-webkit-print-color-adjust:exact;}</style></head><body><img src="${dataUrl}" alt="Accepted contract" /></body></html>`);
       printWindow.document.close();
       printWindow.focus();
       printWindow.onload = () => printWindow.print();
@@ -5045,7 +5101,7 @@ function CustomerDashboard() {
     .slice(0, 5);
   const dashboardRecentNotifications = [...customerNotificationItems]
     .sort(sortCustomerNotificationsNewestFirst)
-    .slice(0, 4);
+    .slice(0, 6);
   const showOrdersFilter = (filter) => {
     setTrackingNumber("");
     setOrderFilter(filter);
@@ -6175,7 +6231,8 @@ function CustomerDashboard() {
                     <p className={`mt-1 text-sm ${sectionMutedTextClass}`}>Your orders will appear here after you submit a request.</p>
                   </div>
                 ) : (
-                  <div className="customer-dashboard-orders-scroll overflow-x-auto">
+                  <>
+                  <div className="customer-dashboard-orders-scroll hidden overflow-x-auto md:block">
                     <table className="customer-dashboard-orders-table w-full min-w-[720px] text-left text-sm">
                       <thead className={darkMode ? "bg-slate-900/50 text-slate-300" : "bg-slate-50 text-slate-600"}>
                         <tr>
@@ -6208,7 +6265,7 @@ function CustomerDashboard() {
                               <td className="px-4 py-3.5"><span className="customer-dashboard-payment-status"><span className={`customer-dashboard-payment-dot ${paymentTone}`} aria-hidden="true" />{paymentSummary.status?.label || "Unpaid"}</span></td>
                               <td className="px-4 py-3.5"><span className={`customer-dashboard-order-status ${statusTone} inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getOrderStatusClasses(order.status)}`}>{getOrderStatusLabel(order.status)}</span></td>
                               <td className="px-4 py-3.5">
-                                <button type="button" onClick={() => setSelectedOrderForModal(order)} className={`customer-dashboard-order-action inline-flex items-center gap-1 whitespace-nowrap font-semibold underline-offset-2 hover:underline ${darkMode ? "text-red-300" : "text-red-700"}`} aria-label={`View details for ${name}`}>View details <ArrowRight size={14} aria-hidden="true" /></button>
+                                <button type="button" onClick={() => setSelectedOrderForModal(order)} className={`inline-flex size-11 items-center justify-center rounded-xl transition-colors ${darkMode ? "bg-blue-500/15 text-blue-300 hover:bg-blue-500/25" : "bg-blue-100 text-blue-600 hover:bg-blue-200"}`} aria-label={`View details for ${name}`} title={`View details for ${name}`}><Eye size={18} strokeWidth={2.25} aria-hidden="true" /></button>
                               </td>
                             </tr>
                           );
@@ -6216,6 +6273,62 @@ function CustomerDashboard() {
                       </tbody>
                     </table>
                   </div>
+                  <div className="space-y-2.5 p-3 md:hidden">
+                    {dashboardRecentOrders.map((order, index) => {
+                      const items = Array.isArray(order.items) ? order.items : [];
+                      const name = items.length > 1 ? "Batch Order" : items[0]?.name || items[0]?.product_name || "Project";
+                      const paymentSummary = getPaymentSummary(order);
+                      const paymentTone = ["paid", "downpayment"].includes(paymentSummary.status?.key) ? "is-paid" : "is-pending";
+                      const normalizedStatus = normalizeOrderStatusKey(order.status);
+                      const statusTone = normalizedStatus === "processing"
+                        ? "is-processing"
+                        : normalizedStatus === "site_inspection"
+                          ? "is-site-inspection"
+                          : normalizedStatus === "completed"
+                            ? "is-completed"
+                            : ["cancelled", "contract_declined", "declined", "rejected"].includes(normalizedStatus)
+                              ? "is-error"
+                              : "is-progress";
+                      const orderId = getOrderIdentifier(order, `dashboard-order-mobile-${index}`);
+
+                      return (
+                        <article key={orderId} className={`rounded-xl border p-3 ${darkMode ? "border-slate-700 bg-slate-900/35" : "border-slate-200 bg-white"}`}>
+                          <div className="flex min-w-0 items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className={`text-[10px] font-bold uppercase tracking-wide ${sectionMutedTextClass}`}>Order {index + 1}</p>
+                              <h3 className={`mt-0.5 truncate text-sm font-bold ${sectionTextClass}`} title={name}>{name}</h3>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <p className={`text-[10px] font-semibold uppercase tracking-wide ${sectionMutedTextClass}`}>Total Amount</p>
+                              <p className={`text-sm font-extrabold ${darkMode ? "text-emerald-400" : "text-emerald-700"}`}>{formatCurrency(getOrderTotalValue(order))}</p>
+                            </div>
+                          </div>
+
+                          <div className={`mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2 border-t pt-2.5 ${darkMode ? "border-slate-700" : "border-slate-100"}`}>
+                            <div className="min-w-0">
+                              <p className={`text-[10px] font-semibold uppercase tracking-wide ${sectionMutedTextClass}`}>Order Date</p>
+                              <p className={`mt-0.5 truncate text-xs font-medium ${sectionTextClass}`}>{formatDateToMMMDDYYYY(order.createdAt || order.updatedAt) || "—"}</p>
+                            </div>
+                            <div className="min-w-0">
+                              <p className={`text-[10px] font-semibold uppercase tracking-wide ${sectionMutedTextClass}`}>Payment</p>
+                              <span className="customer-dashboard-payment-status mt-0.5">
+                                <span className={`customer-dashboard-payment-dot ${paymentTone}`} aria-hidden="true" />
+                                {paymentSummary.status?.label || "Unpaid"}
+                              </span>
+                            </div>
+                            <div className="min-w-0">
+                              <p className={`text-[10px] font-semibold uppercase tracking-wide ${sectionMutedTextClass}`}>Order Status</p>
+                              <span className={`customer-dashboard-order-status ${statusTone} mt-0.5 inline-flex max-w-full rounded-full px-2 py-1 text-[10px] font-semibold ${getOrderStatusClasses(order.status)}`}>{getOrderStatusLabel(order.status)}</span>
+                            </div>
+                            <div className="flex items-end justify-end">
+                              <button type="button" onClick={() => setSelectedOrderForModal(order)} className={`inline-flex size-9 items-center justify-center rounded-lg transition-colors ${darkMode ? "bg-blue-500/15 text-blue-300 hover:bg-blue-500/25" : "bg-blue-100 text-blue-600 hover:bg-blue-200"}`} aria-label={`View details for ${name}`} title={`View details for ${name}`}><Eye size={17} strokeWidth={2.25} aria-hidden="true" /></button>
+                            </div>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                  </>
                 )}
               </section>
             </div>
@@ -6233,7 +6346,7 @@ function CustomerDashboard() {
 
                 {ordersLoading && dashboardRecentNotifications.length === 0 ? (
                   <div className="customer-dashboard-updates-feed-state space-y-3 p-4" aria-label="Loading recent updates">
-                    {[...Array(3)].map((_, index) => <div key={index} className={`h-16 animate-pulse rounded-xl ${darkMode ? "bg-slate-700" : "bg-slate-100"}`} />)}
+                  {[...Array(6)].map((_, index) => <div key={index} className={`h-16 animate-pulse rounded-xl ${darkMode ? "bg-slate-700" : "bg-slate-100"}`} />)}
                   </div>
                 ) : ordersLoadError && dashboardRecentNotifications.length === 0 ? (
                   <div role="alert" className={`customer-dashboard-updates-feed-state m-4 rounded-xl border p-4 text-sm ${darkMode ? "border-red-900 bg-red-950/40 text-red-200" : "border-red-200 bg-red-50 text-red-700"}`}>{ordersLoadError}</div>
@@ -6320,19 +6433,19 @@ function CustomerDashboard() {
               {productError && <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">{productError}</div>}
 
               {isLoadingProducts ? (
-                <div className="mx-auto grid w-full min-w-0 max-w-[1200px] grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-5">{[...Array(6)].map((_, i) => <div key={i} className={`min-h-[410px] animate-pulse rounded-[18px] border ${darkMode ? "border-[#3d4862] bg-[#2a3246]" : "border-slate-200 bg-white"}`} />)}</div>
+                <div className="mx-auto grid w-full min-w-0 max-w-[1200px] grid-cols-1 gap-3 min-[768px]:grid-cols-[repeat(auto-fill,minmax(250px,1fr))] min-[768px]:gap-5">{[...Array(6)].map((_, i) => <div key={i} className={`min-h-[196px] animate-pulse rounded-[18px] border min-[768px]:min-h-[410px] ${darkMode ? "border-[#3d4862] bg-[#2a3246]" : "border-slate-200 bg-white"}`} />)}</div>
               ) : visibleProducts.length === 0 ? (
                 <div className={`rounded-3xl p-10 text-center shadow ${darkMode ? "bg-slate-800 text-slate-200" : "bg-white text-gray-600"}`}><p className={darkMode ? "text-slate-300" : "text-gray-600"}>No products matched your search.</p></div>
               ) : (
                 <>
-                  <div className="mx-auto grid w-full min-w-0 max-w-[1200px] grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-5">
+                  <div className="mx-auto grid w-full min-w-0 max-w-[1200px] grid-cols-1 gap-3 min-[768px]:grid-cols-[repeat(auto-fill,minmax(250px,1fr))] min-[768px]:gap-5">
                     {displayedProducts.map((product, index) => (
                       <div
                         key={product._id || product.name}
                         className="customer-product-card group relative flex h-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-[18px] border border-[var(--product-border)] bg-[var(--product-card)] shadow-[0_4px_14px_rgba(30,24,16,0.08)] transition-[transform,box-shadow,border-color] duration-[180ms] ease-out hover:-translate-y-1 hover:border-red-300 hover:shadow-[0_16px_36px_rgba(30,24,16,0.16)] motion-reduce:transition-none"
                         onClick={() => handleViewProduct(product)}
                       >
-                        <div className="group/image relative aspect-[4/3] overflow-hidden bg-slate-100">
+                        <div className="product-card-image group/image relative aspect-[4/3] overflow-hidden bg-slate-100">
                           <div data-product-image-skeleton className="absolute inset-0 animate-pulse bg-slate-200 motion-reduce:animate-none" />
                           <img
                             src={getProductImage(product, 480) || PRODUCT_IMAGE_PLACEHOLDER}
@@ -6350,7 +6463,7 @@ function CustomerDashboard() {
                           />
                           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[45%] bg-gradient-to-t from-black/30 to-transparent" />
 
-                          <div className="absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-2 p-3">
+                          <div className="product-card-badges absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-2 p-3">
                             {product.is_featured ? (
                               <>
                                 <span aria-label="Top Product" title="Top Product" className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-[var(--product-gold)] px-[11px] py-[5px] text-[10.5px] font-bold uppercase tracking-[0.07em] text-[var(--product-gold-text)]">
@@ -6369,7 +6482,7 @@ function CustomerDashboard() {
                           </div>
                         </div>
 
-                        <div className="flex min-w-0 flex-1 flex-col p-4">
+                        <div className="product-card-details flex min-w-0 flex-1 flex-col p-4">
                           <div>
                             <h3 className="line-clamp-2 text-[16.5px] font-extrabold leading-tight text-[var(--product-text)]" title={product.name}>{product.name}</h3>
                             <p className="mt-1 truncate text-[12.5px] font-medium text-[var(--product-muted)]">{product.product_type || product.category || "General"}</p>
@@ -6387,14 +6500,14 @@ function CustomerDashboard() {
                           )}
 
                           {String(product.pricing_method || product.unit).toLowerCase() === "blade" && product.sell_with_frame && product.blade_frame_types?.length > 0 && (
-                            <p className="mt-2 flex min-h-[62px] flex-wrap content-center items-baseline gap-x-1 text-sm leading-5 text-[var(--product-text)]" title={`With frame: ${product.blade_frame_types.map((frame) => frame.name).join(" / ")}`}>
+                            <p className="product-card-metrics mt-2 flex min-h-[62px] flex-wrap content-center items-baseline gap-x-1 text-sm leading-5 text-[var(--product-text)]" title={`With frame: ${product.blade_frame_types.map((frame) => frame.name).join(" / ")}`}>
                               <span className="font-semibold text-[var(--product-muted)]">With frame:</span>
                               <span className="font-bold">{product.blade_frame_types.map((frame) => frame.name).join(" / ")}</span>
                             </p>
                           )}
 
                           {String(product.pricing_method || product.unit).toLowerCase() !== "blade" && (
-                          <div className="mt-2 flex min-h-[62px] flex-col justify-center divide-y divide-dashed divide-[var(--product-border)] text-sm">
+                          <div className="product-card-metrics mt-2 flex min-h-[62px] flex-col justify-center divide-y divide-dashed divide-[var(--product-border)] text-sm">
                             {!isBladePricingProduct(product) && (getProductDefaultDimensions(product).width > 0 || getProductDefaultDimensions(product).height > 0) && <>
                               <p className="flex items-center justify-between gap-2 py-1.5 first:pt-0 last:pb-0">
                                 <span className="shrink-0 font-medium text-[var(--product-muted)]">Width × Height</span>
@@ -6410,7 +6523,7 @@ function CustomerDashboard() {
                           </div>
                           )}
 
-                          <div className="mt-auto flex items-end justify-between gap-3 border-t border-[var(--product-border)] pt-3">
+                          <div className="product-card-footer mt-auto flex items-end justify-between gap-3 border-t border-[var(--product-border)] pt-3">
                             <div className="min-w-0">
                               <p className="text-[10px] uppercase tracking-[0.1em] text-[var(--product-muted)]">Starting from</p>
                               <p className="mt-1 truncate text-[22px] font-extrabold leading-tight text-[var(--product-price)]">{getProductPrice(product)}</p>
@@ -6453,19 +6566,23 @@ function CustomerDashboard() {
                     <div className={`mt-8 grid gap-4 rounded-[20px] border p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] md:grid-cols-[1fr_auto_1fr] md:items-center ${
                       darkMode ? "border-slate-700 bg-slate-800" : "border-red-100 bg-white"
                     }`}>
-                      <div className={`flex items-center gap-3 text-sm font-medium ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
-                        <span>Items per page</span>
+                      <div className={`flex min-w-0 items-center gap-3 text-sm font-medium ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
+                        <span className="shrink-0 whitespace-nowrap">Items per page</span>
                         <CustomerDropdown
                           ariaLabel="Items per page"
                           darkMode={darkMode}
-                          value={productsPerPage}
-                          onChange={(event) => setProductsPerPage(Number(event.target.value))}
-                          className="w-auto min-w-20"
+                          value={productsPerPage === 0 ? "all" : productsPerPage}
+                          onChange={(event) => {
+                            setProductsPerPage(event.target.value === "all" ? 0 : Number(event.target.value));
+                            setProductPage(1);
+                          }}
+                          className="h-11 !w-36 min-w-0 shrink-0 rounded-xl px-3"
                         >
                           <option value={4}>4</option>
                           <option value={8}>8</option>
                           <option value={12}>12</option>
                           <option value={16}>16</option>
+                          <option value="all">All products</option>
                         </CustomerDropdown>
                       </div>
 
@@ -6519,8 +6636,8 @@ function CustomerDashboard() {
                       )}
 
                       <div className={`text-right text-sm font-medium ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
-                        Showing {paginatedProducts.items.length ? (paginatedProducts.currentPage - 1) * productsPerPage + 1 : 0}
-                        {paginatedProducts.items.length ? `-${Math.min(paginatedProducts.currentPage * productsPerPage, visibleProducts.length)}` : ""} of {visibleProducts.length} products
+                        Showing {paginatedProducts.items.length ? (paginatedProducts.currentPage - 1) * effectiveProductsPerPage + 1 : 0}
+                        {paginatedProducts.items.length ? `-${Math.min(paginatedProducts.currentPage * effectiveProductsPerPage, visibleProducts.length)}` : ""} of {visibleProducts.length} products
                       </div>
                     </div>
                   )}
@@ -8211,36 +8328,45 @@ function CustomerDashboard() {
             )}
 
             {showBatchSuccessModal && (
-              <div className="customer-modal-overlay fixed inset-0 z-[70] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
-                <div className={`max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-[26px] border p-6 shadow-[0_24px_80px_rgba(15,23,42,0.18)] ${darkMode ? "border-slate-700 bg-slate-900" : "border-transparent bg-white"}`}>
-                  <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full border-2 ${darkMode ? "border-green-800 bg-green-950/50" : "border-green-200 bg-green-50"}`}>
-                    <CheckCircle className={`h-8 w-8 ${darkMode ? "text-green-400" : "text-green-700"}`} />
+              <div className="order-success-overlay fixed inset-0 z-[70] flex items-center justify-center p-4">
+                <div
+                  ref={orderSuccessDialogRef}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="order-success-batch-title"
+                  tabIndex={-1}
+                  onKeyDown={trapOrderSuccessDialogFocus}
+                  className={`order-success-dialog ${darkMode ? "is-dark" : ""}`}
+                >
+                  <div className="order-success-icon" aria-hidden="true">
+                    <CheckCircle className="order-success-check-icon" size={42} strokeWidth={2.6} />
                   </div>
 
-                  <h3 className={`mt-5 text-center text-2xl font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>
+                  <h3 id="order-success-batch-title" className="order-success-title">
                     {batchSuccessItemCount === 1 ? "Order Request Submitted!" : "Batch Order Requests Submitted!"}
                   </h3>
 
                   {renderOrderConfirmationProducts(batchSuccessItems)}
 
-                  <p className={`mt-4 text-center text-sm leading-6 ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
-                    Thank you! Your architectural order requests have been received. Our team will contact you shortly to schedule your site inspection and finalize quotation.
+                  <p className="order-success-message">
+                    Thank you! Your order requests have been received. Our team will contact you shortly to schedule your site inspection and finalize quotation.
                   </p>
 
-                  <p className={`mt-5 flex items-center justify-center gap-2 text-sm font-medium ${darkMode ? "text-slate-200" : "text-slate-700"}`}>
-                    <Phone size={15} className={darkMode ? "text-slate-400" : "text-slate-500"} />
-                    Questions? Call us at 09123456789
-                  </p>
+                  <a className="order-success-contact" href={adminContactPhoneHref}>
+                    <Phone size={16} strokeWidth={2} aria-hidden="true" />
+                    Questions? Call us at {adminContactPhone}
+                  </a>
 
-                  <div className="mt-6 flex gap-3">
+                  <div className="order-success-actions">
                     <button
                       type="button"
+                      ref={orderSuccessPrimaryButtonRef}
                       onClick={() => {
                         setShowBatchSuccessModal(false);
                         setBatchSuccessItems([]);
                         setActiveTab("orders");
                       }}
-                      className="flex-1 rounded-xl border border-red-600 bg-red-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-800"
+                      className="order-success-button order-success-button-primary"
                     >
                       View Your Orders
                     </button>
@@ -8252,7 +8378,7 @@ function CustomerDashboard() {
                         setBatchSuccessItems([]);
                         setActiveTab("products");
                       }}
-                      className={`flex-1 rounded-xl border px-4 py-3 text-sm font-semibold transition ${darkMode ? "border-red-500 bg-slate-900 text-red-300 hover:bg-red-950/50" : "border-red-600 bg-white text-red-700 hover:bg-red-50"}`}
+                      className="order-success-button order-success-button-secondary"
                     >
                       Continue Browsing
                     </button>
@@ -8425,34 +8551,43 @@ function CustomerDashboard() {
             )}
 
             {showOrderSuccessModal && orderSuccessData && (
-              <div className="customer-modal-overlay fixed inset-0 z-[70] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
-                <div className={`max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-[26px] border p-6 shadow-[0_24px_80px_rgba(15,23,42,0.18)] ${darkMode ? "border-slate-700 bg-slate-900" : "border-transparent bg-white"}`}>
-                  <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full border-2 ${darkMode ? "border-emerald-700 bg-emerald-950/40" : "border-emerald-200 bg-emerald-50"}`}>
-                    <CheckCircle className={`h-8 w-8 ${darkMode ? "text-emerald-400" : "text-emerald-600"}`} />
+              <div className="order-success-overlay fixed inset-0 z-[70] flex items-center justify-center p-4">
+                <div
+                  ref={orderSuccessDialogRef}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="order-success-single-title"
+                  tabIndex={-1}
+                  onKeyDown={trapOrderSuccessDialogFocus}
+                  className={`order-success-dialog ${darkMode ? "is-dark" : ""}`}
+                >
+                  <div className="order-success-icon" aria-hidden="true">
+                    <CheckCircle className="order-success-check-icon" size={42} strokeWidth={2.6} />
                   </div>
 
-                  <h3 className={`mt-5 text-center text-2xl font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>Order Request Submitted!</h3>
+                  <h3 id="order-success-single-title" className="order-success-title">Order Request Submitted!</h3>
 
                   {renderOrderConfirmationProducts(orderSuccessData.items)}
 
-                  <p className={`mt-4 text-center text-sm leading-6 ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
-                    Thank you! Your architectural order requests have been received. Our team will contact you shortly to schedule your site inspection and finalize quotation.
+                  <p className="order-success-message">
+                    Thank you! Your order requests have been received. Our team will contact you shortly to schedule your site inspection and finalize quotation.
                   </p>
 
-                  <p className={`mt-5 flex items-center justify-center gap-2 text-sm font-medium ${darkMode ? "text-slate-200" : "text-slate-700"}`}>
-                    <Phone size={15} className={darkMode ? "text-slate-400" : "text-slate-500"} />
-                    Questions? Call us at 09123456789
-                  </p>
+                  <a className="order-success-contact" href={adminContactPhoneHref}>
+                    <Phone size={16} strokeWidth={2} aria-hidden="true" />
+                    Questions? Call us at {adminContactPhone}
+                  </a>
 
-                  <div className="mt-6 flex gap-3">
+                  <div className="order-success-actions">
                     <button
                       type="button"
+                      ref={orderSuccessPrimaryButtonRef}
                       onClick={() => {
                         setShowOrderSuccessModal(false);
                         setOrderSuccessData(null);
                         setActiveTab("orders");
                       }}
-                      className="flex-1 rounded-xl border border-red-500 bg-red-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-700"
+                      className="order-success-button order-success-button-primary"
                     >
                       View Your Orders
                     </button>
@@ -8464,7 +8599,7 @@ function CustomerDashboard() {
                         setOrderSuccessData(null);
                         setActiveTab("products");
                       }}
-                      className="flex-1 rounded-xl border border-red-500 bg-transparent px-4 py-3 text-sm font-semibold text-red-400 transition hover:bg-red-950/30"
+                      className="order-success-button order-success-button-secondary"
                     >
                       Continue Browsing
                     </button>
@@ -8546,6 +8681,8 @@ function CustomerDashboard() {
               <div className="space-y-4">
                 {displayedOrders.map((order, index) => {
                   const orderId = getOrderIdentifier(order, `order-${index}`);
+                  const paymentHistoryKey = `${orderOwnerId}:${orderId}`;
+                  const isPaymentHistoryExpanded = Boolean(paymentHistoryExpandedByOrder[paymentHistoryKey]);
                   const product = order.items?.[0] || {};
                   const orderItems = Array.isArray(order.items) ? order.items : [];
                   const unresolvedPaymentRecords = new Set(getUnresolvedPaymentProofRecords(order));
@@ -8953,8 +9090,22 @@ function CustomerDashboard() {
 
                           {Array.isArray(order.payment_records) && order.payment_records.length > 0 && (
                             <section className={`mt-4 rounded-xl border p-3 ${darkMode ? "border-slate-700 bg-slate-800/70" : "border-slate-200 bg-white"}`}>
-                              <h5 className={`text-xs font-black uppercase tracking-wide ${darkMode ? "text-slate-200" : "text-slate-700"}`}>Payment history</h5>
-                              <div
+                              <button
+                                type="button"
+                                aria-expanded={isPaymentHistoryExpanded}
+                                aria-controls={`payment-history-content-${orderId}`}
+                                onClick={() => setPaymentHistoryExpandedByOrder((current) => ({
+                                  ...current,
+                                  [paymentHistoryKey]: !current[paymentHistoryKey],
+                                }))}
+                                className={`flex w-full items-center justify-between gap-3 rounded-md text-left text-xs font-black uppercase tracking-wide outline-none transition focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ${darkMode ? "text-slate-200 focus-visible:ring-offset-slate-800" : "text-slate-700 focus-visible:ring-offset-white"}`}
+                              >
+                                <span>Payment history</span>
+                                {isPaymentHistoryExpanded ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}
+                              </button>
+                              {isPaymentHistoryExpanded && (
+                                <div
+                                id={`payment-history-content-${orderId}`}
                                 className={`mt-2 max-h-56 space-y-2 overflow-y-scroll overscroll-contain pr-2 sm:max-h-64 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:rounded-full ${darkMode ? "[&::-webkit-scrollbar-track]:bg-slate-800 [&::-webkit-scrollbar-thumb]:bg-slate-500" : "[&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-thumb]:bg-slate-400"}`}
                                 style={{ scrollbarWidth: "thin", scrollbarColor: darkMode ? "#64748b #1e293b" : "#94a3b8 #f1f5f9" }}
                               >
@@ -9058,7 +9209,8 @@ function CustomerDashboard() {
                                     </div>
                                   );
                                 })}
-                              </div>
+                                </div>
+                              )}
                             </section>
                           )}
 
@@ -9115,8 +9267,8 @@ function CustomerDashboard() {
                               </div>
                             ) : paymentProofOpenOrderId === orderId ? (
                               <div className={`sm:col-span-2 rounded-xl border p-4 sm:p-5 ${darkMode ? "border-slate-700 bg-slate-800/80" : "border-[#e9e1d4] bg-white"}`}>
-                                <div className="grid w-full max-w-2xl gap-3">
-                                  <div>
+                                <div className="grid w-full gap-3">
+                                  <div className="w-full max-w-2xl">
                                     <label htmlFor={`payment-amount-${orderId}`} className={`mb-1.5 flex items-center gap-2 text-sm font-bold ${darkMode ? "text-slate-100" : "text-slate-900"}`}>
                                       Amount paid <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${darkMode ? "bg-amber-500/15 text-amber-300" : "bg-amber-100 text-amber-700"}`}>(required)</span>
                                     </label>
@@ -9145,24 +9297,44 @@ function CustomerDashboard() {
                                   </div>
                                   <div className="w-full pt-1">
                                     <div className={`mb-2 flex items-center gap-2 text-sm font-bold ${darkMode ? "text-slate-100" : "text-slate-900"}`}>
-                                      Payment proof <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${darkMode ? "border-slate-600 bg-slate-800 text-slate-300" : "border-[#e9e1d4] bg-[#faf8f4] text-slate-600"}`}>(optional)</span>
+                                      Payment proof <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${darkMode ? "bg-amber-500/15 text-amber-300" : "bg-amber-100 text-amber-700"}`}>(required)</span>
                                     </div>
-                                    <label
-                                      htmlFor={`payment-proof-${orderId}`}
-                                      className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-dashed px-3 py-2 transition focus-within:ring-2 focus-within:ring-amber-500 ${darkMode ? "border-slate-600 bg-slate-900 hover:border-slate-500" : "border-[#e9e1d4] bg-[#faf8f4] hover:border-amber-400"}`}
-                                    >
-                                      <FileText size={15} className="shrink-0 text-slate-400" aria-hidden="true" />
-                                      <span className={`min-w-0 flex-1 truncate text-[11px] font-medium ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
-                                        {paymentProofForm.fileName || "Choose an image or PDF"}
-                                      </span>
-                                      <input
-                                        id={`payment-proof-${orderId}`}
-                                        type="file"
-                                        accept="image/*,.pdf"
-                                        onChange={handlePaymentProofFileChange}
-                                        className="sr-only"
-                                      />
-                                    </label>
+                                    <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
+                                      <label
+                                        htmlFor={`payment-proof-${orderId}`}
+                                        className={`flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-xl border border-dashed px-3 py-2 transition focus-within:ring-2 focus-within:ring-amber-500 ${darkMode ? "border-slate-600 bg-slate-900 hover:border-slate-500" : "border-[#e9e1d4] bg-[#faf8f4] hover:border-amber-400"}`}
+                                      >
+                                        <FileText size={15} className="shrink-0 text-slate-400" aria-hidden="true" />
+                                        <span className={`min-w-0 flex-1 truncate text-[11px] font-medium ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
+                                          {paymentProofForm.fileName || "Choose an image or PDF"}
+                                        </span>
+                                        <input
+                                          id={`payment-proof-${orderId}`}
+                                          type="file"
+                                          accept="image/*,.pdf"
+                                          onChange={handlePaymentProofFileChange}
+                                          required
+                                          className="sr-only"
+                                        />
+                                      </label>
+                                      <div className="flex shrink-0 justify-end gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={requestClosePaymentProofForm}
+                                          className={`inline-flex h-9 w-fit items-center justify-center rounded-lg border px-4 text-xs font-bold transition duration-150 hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 ${darkMode ? "border-slate-600 bg-slate-800 text-slate-200 hover:border-slate-500 hover:bg-slate-700 focus-visible:ring-offset-slate-800" : "border-[#e9e1d4] bg-white text-slate-800 hover:border-slate-300 hover:bg-[#faf8f4] focus-visible:ring-offset-white"}`}
+                                        >
+                                          Cancel
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => submitPaymentProof(order)}
+                                          disabled={paymentProofLoading || isPaymentBelowRequired}
+                                          className="inline-flex h-9 w-fit items-center justify-center rounded-lg bg-emerald-700 px-4 text-xs font-bold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-70"
+                                        >
+                                          {paymentProofLoading ? "Submitting..." : "Submit Payment Info"}
+                                        </button>
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
 
@@ -9170,33 +9342,19 @@ function CustomerDashboard() {
                                   <p role="alert" className="mt-2 text-xs font-semibold text-red-600">{paymentProofError}</p>
                                 )}
 
-                                <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                                  <button
-                                    type="button"
-                                    onClick={requestClosePaymentProofForm}
-                                    className={`inline-flex h-11 items-center justify-center rounded-xl border px-5 text-sm font-semibold transition ${darkMode ? "border-slate-600 bg-slate-800 text-slate-200 hover:bg-slate-700" : "border-[#e9e1d4] bg-white text-slate-800 hover:bg-[#faf8f4]"}`}
-                                  >
-                                    Cancel
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => submitPaymentProof(order)}
-                                    disabled={paymentProofLoading || isPaymentBelowRequired}
-                                    className="inline-flex h-11 items-center justify-center rounded-xl bg-emerald-700 px-5 text-sm font-bold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-70"
-                                  >
-                                    {paymentProofLoading ? "Submitting..." : "Submit Payment Info"}
-                                  </button>
-                                </div>
                               </div>
                             ) : (
                               isCustomerAcceptedContract ? (
-                                <div className="col-span-full flex justify-end">
+                                <div className="col-span-full flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                  <p className={`text-xs font-medium leading-5 ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                                    If you have already paid, submit your proof of payment here. ACGC will review and verify it.
+                                  </p>
                                   <button
                                     type="button"
                                     onClick={() => handleOpenPaymentProofForm(orderId)}
-                                    className="inline-flex h-9 w-fit items-center justify-center rounded-lg bg-emerald-700 px-4 text-xs font-bold text-white transition hover:bg-emerald-800"
+                                    className="inline-flex h-9 w-fit shrink-0 items-center justify-center rounded-lg bg-emerald-700 px-4 text-xs font-bold text-white transition hover:bg-emerald-800"
                                   >
-                                    I've already paid
+                                    Submit Payment Proof
                                   </button>
                                 </div>
                               ) : (
@@ -10277,7 +10435,7 @@ function CustomerDashboard() {
                                 aria-label={`View details for ${orderDisplayName}`}
                                 className={`inline-flex w-[7.25rem] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold transition ${darkMode ? "bg-red-600 text-white hover:bg-red-500" : "bg-red-700 text-white hover:bg-red-800"}`}
                               >
-                                View details <ChevronDown size={14} aria-hidden="true" />
+                                View details <Eye size={14} aria-hidden="true" />
                               </button>
                             </div>
                           </div>

@@ -3343,6 +3343,23 @@ export const submitCustomerPaymentProof = async (req, res) => {
       return res.status(409).json({ success: false, message: "Cancelled projects cannot receive new payment submissions. Existing payment history is preserved." });
     }
 
+    const normalizedProofFileName = String(proof_file_name || "").trim();
+    const normalizedProofFileUrl = String(proof_file_url || "").trim();
+    if (!normalizedProofFileUrl) {
+      return res.status(400).json({ success: false, message: "A payment proof image or PDF is required." });
+    }
+    if (normalizedProofFileName.length > 255) {
+      return res.status(400).json({ success: false, message: "The payment proof filename is too long." });
+    }
+    try {
+      const uploadedProofUrl = new URL(normalizedProofFileUrl);
+      if (uploadedProofUrl.hostname !== "res.cloudinary.com" || !uploadedProofUrl.pathname.includes("/acgc/payment-proofs/")) {
+        return res.status(400).json({ success: false, message: "Upload proof using the supported payment-proof uploader." });
+      }
+    } catch {
+      return res.status(400).json({ success: false, message: "Provide a valid uploaded proof URL." });
+    }
+
     initializePaymentLedger(order);
     if ((order.payment_records || []).some((record) => record.status === "pending")) {
       return res.status(409).json({
@@ -3363,8 +3380,8 @@ export const submitCustomerPaymentProof = async (req, res) => {
       status: "pending",
       payment_method: payment_method || order.payment_method || "Cash",
       transaction_number: transaction_number || "",
-      proof_file_name: proof_file_name || "",
-      proof_file_url: proof_file_url || "",
+      proof_file_name: normalizedProofFileName,
+      proof_file_url: normalizedProofFileUrl,
       submitted_at: submittedAt,
     };
     order.payment_records.push(paymentRecord);

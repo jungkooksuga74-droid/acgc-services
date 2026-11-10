@@ -120,8 +120,9 @@ const warrantyForItem = (order, item, now = new Date()) => {
   const noWarranty = String(period || "").trim().toLowerCase() === "no warranty" || status === "no_warranty";
   const expiresAt = expiry ? new Date(expiry) : null;
   const active = !noWarranty && (expiresAt ? expiresAt >= now : status === "active");
+  const expired = !noWarranty && (expiresAt ? expiresAt < now : status === "expired");
   return {
-    status: noWarranty ? "no_warranty" : active ? "active" : expiresAt ? "expired" : "unknown",
+    status: noWarranty ? "no_warranty" : active ? "active" : expired ? "expired" : "unknown",
     startsAt: start ? new Date(start) : null,
     expiresAt,
   };
@@ -251,7 +252,8 @@ export const createAdminRepairRequest = async (req, res) => {
   const productName = orderItem ? text(orderItem.name, 200) || "Ordered product" : text(req.body?.productName, 200);
   const issueDescription = text(req.body?.issueDescription);
   const warranty = order && orderItem ? warrantyForItem(order, orderItem) : { status: req.body?.workflowType === "warranty" ? "unknown" : "no_warranty" };
-  const workflowType = order && orderItem ? warranty.status === "active" ? "warranty" : "paid" : req.body?.workflowType === "warranty" ? "warranty" : "paid";
+  if (order && orderItem && warranty.status === "unknown") return res.status(409).json({ success: false, message: "The project's warranty end date could not be confirmed. Update its warranty details before creating a repair ticket." });
+  const workflowType = order && orderItem ? ["expired", "no_warranty"].includes(warranty.status) ? "paid" : "warranty" : req.body?.workflowType === "warranty" ? "warranty" : "paid";
   if (!customerName || !productName || !issueDescription) return res.status(400).json({ success: false, message: "Enter the customer name, product or service, and repair issue." });
   const existing = await activeRepairConflict({ customer: customer?._id, order: order?._id, productIndex });
   if (existing) return sendActiveRepairConflict(res, existing, true);
@@ -327,7 +329,11 @@ export const createCustomerRepairRequest = async (req, res) => {
   const item = order?.items?.[productIndex];
   if (!order || !item) return res.status(404).json({ success: false, message: "Completed order or product not found in your account." });
   const warranty = warrantyForItem(order, item);
-  const workflowType = warranty.status === "active" ? "warranty" : "paid";
+  if (warranty.status === "unknown") return res.status(409).json({ success: false, message: "We could not confirm this project's warranty end date. Please contact ACGC to verify coverage before submitting a repair request." });
+  const workflowType = ["expired", "no_warranty"].includes(warranty.status) ? "paid" : "warranty";
+  const requestedWorkflowType = String(req.body?.workflowType || "").trim().toLowerCase();
+  if (requestedWorkflowType && !["warranty", "paid"].includes(requestedWorkflowType)) return res.status(400).json({ success: false, message: "Choose a valid repair request type." });
+  if (requestedWorkflowType && requestedWorkflowType !== workflowType) return res.status(409).json({ success: false, message: workflowType === "paid" ? "This project is outside warranty coverage. Submit it as an out-of-warranty repair request." : "This project is still covered by warranty. Submit it as a warranty claim." });
   if (workflowType === "paid" && req.body?.outOfWarrantyAcknowledged !== true) return res.status(400).json({ success: false, message: "Confirm that this paid repair is subject to inspection and quotation before filing." });
   const mediaUrls = Array.isArray(req.body?.mediaUrls) ? req.body.mediaUrls.slice(0, 6).map((url) => text(url, 1200)).filter((url) => /^https:\/\//i.test(url)) : [];
   const account = await User.findById(req.user.id).select("first_name last_name email phone street_address city province zip_code").lean();
@@ -362,7 +368,8 @@ export const reviewWarrantyClaim = async (req, res) => {
   if (repair.workflowType !== "warranty" || repair.status !== "pending_review") return res.status(409).json({ success: false, message: "Only a pending warranty claim can be approved here." });
   const order = repair.createdByAdmin ? null : await Order.findById(repair.order).lean();
   const currentWarranty = repair.createdByAdmin ? { status: "active" } : order?.items?.[repair.productIndex] ? warrantyForItem(order, order.items[repair.productIndex]) : { status: "unknown" };
-  if (currentWarranty.status !== "active") {
+  if (currentWarranty.status === "unknown") return res.status(409).json({ success: false, message: "The warranty end date could not be confirmed. Update the project warranty details before processing this claim." });
+  if (["expired", "no_warranty"].includes(currentWarranty.status)) {
     repair.workflowType = "paid";
     repair.warranty.status = currentWarranty.status;
     repair.warranty.expiresAt = currentWarranty.expiresAt || repair.warranty.expiresAt;

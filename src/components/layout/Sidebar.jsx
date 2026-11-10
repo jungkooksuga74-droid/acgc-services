@@ -179,7 +179,7 @@ function Sidebar({ forceRender = false }) {
   const mobileNavItems = [
     canViewStaffModule("dashboard") && { to: "/dashboard", label: "Dashboard", icon: <Gauge size={20} />, badge: badges.dashboard, active: location.pathname === "/dashboard" },
     canViewStaffModule("site_inspection") && { to: "/site-inspection", label: "Inspection", icon: <ClipboardCheck size={20} />, badge: badges.siteInspection, active: location.pathname === "/site-inspection" },
-    canViewStaffModule("transactions") && { to: "/transactions", label: "Transactions", compactLabel: "Trans.", icon: <ReceiptText size={20} />, badge: badges.transactions, active: location.pathname === "/transactions" },
+    canViewStaffModule("transactions") && { to: "/transactions", label: "Transactions", icon: <ReceiptText size={20} />, badge: badges.transactions, active: location.pathname === "/transactions" },
     canViewStaffModule("progress_monitoring") && { to: "/progress-monitor", label: "Monitor", icon: <ChartNoAxesCombined size={20} />, badge: badges.progressMonitor, active: location.pathname === "/progress-monitor" },
     canViewStaffModule("repair_management") && { to: "/repair-requests", label: "Repairs", icon: <Wrench size={20} />, badge: badges.repairManagement, active: location.pathname === "/repair-requests" },
     canViewStaffModule("product_management") && { to: "/product", label: "Products", icon: <Package size={20} />, active: location.pathname === "/product" },
@@ -359,7 +359,7 @@ function Sidebar({ forceRender = false }) {
         aria-label="Admin navigation"
         className={`admin-mobile-navigation fixed inset-x-0 bottom-0 z-[60] flex w-full items-center justify-around gap-0 border-t px-1 pt-1.5 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur-xl lg:hidden ${darkMode ? "border-slate-800 bg-slate-950/95" : "border-slate-200 bg-white/95"}`}
       >
-        {mobileNavItems.map(({ to, label, compactLabel, icon, active, badge }) => (
+        {mobileNavItems.map(({ to, label, icon, active, badge }) => (
           <Link
             key={to}
             to={to}
@@ -370,7 +370,7 @@ function Sidebar({ forceRender = false }) {
             onPointerEnter={() => prefetchAdminRoute(to)}
             onPointerDown={() => prefetchAdminRoute(to)}
             onFocus={() => prefetchAdminRoute(to)}
-          className={`group relative flex h-[58px] min-w-0 flex-1 flex-col items-center justify-center rounded-lg px-1 text-center transition-[transform,background-color,color] duration-200 ease-out hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transform-none motion-reduce:transition-none ${active ? darkMode ? "text-white" : "text-slate-900" : darkMode ? "text-slate-400 hover:bg-slate-800 hover:text-slate-100" : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"}`}
+          className={`group relative flex h-[58px] min-w-0 flex-1 flex-col items-center justify-center rounded-lg px-0 text-center transition-[transform,background-color,color] duration-200 ease-out hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transform-none motion-reduce:transition-none ${active ? darkMode ? "text-white" : "text-slate-900" : darkMode ? "text-slate-400 hover:bg-slate-800 hover:text-slate-100" : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"}`}
           >
             <span className="relative inline-flex">
               <span
@@ -391,8 +391,7 @@ function Sidebar({ forceRender = false }) {
               </span>
               {badge > 0 && <span className={`absolute -right-2 -top-1 z-20 inline-flex h-4 min-w-4 items-center justify-center rounded-full border px-1 text-[9px] font-bold leading-none ${darkMode ? "border-slate-900 bg-red-500 text-white" : "border-white bg-red-600 text-white"}`} aria-label={`${badge} unread notifications`}>{badge > 99 ? "99+" : badge}</span>}
             </span>
-            <span className={`mt-0.5 max-w-full truncate leading-[12px] transition-opacity duration-150 motion-reduce:transition-none ${active ? "text-[11px] font-bold opacity-100" : "text-[10px] font-medium opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"} ${compactLabel ? "max-[360px]:hidden" : ""}`} aria-hidden="true">{label}</span>
-            {compactLabel && <span className={`mt-0.5 hidden max-w-full truncate leading-[12px] transition-opacity duration-150 motion-reduce:transition-none max-[360px]:inline ${active ? "text-[11px] font-bold opacity-100" : "text-[10px] font-medium opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"}`} aria-hidden="true">{compactLabel}</span>}
+            <span className={`mt-0.5 whitespace-nowrap leading-[12px] transition-opacity duration-150 motion-reduce:transition-none ${active ? "text-[8px] font-bold opacity-100" : "text-[7px] font-medium opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100"}`} aria-hidden="true">{label}</span>
           </Link>
         ))}
       </nav>

@@ -1,9 +1,17 @@
 import { Toaster, ToastBar } from "react-hot-toast";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 export default function AppToaster({ position = "bottom-right", darkMode = false }) {
+  const isMobile = useIsMobile();
+  const toasterPosition = isMobile ? "top-center" : position;
+  const containerStyle = isMobile
+    ? { top: "calc(env(safe-area-inset-top, 0px) + 72px)", left: 12, right: 12, bottom: 12 }
+    : undefined;
+
   return (
     <Toaster
-      position={position}
+      position={toasterPosition}
+      containerStyle={containerStyle}
       toastOptions={{
         duration: 4200,
         style: {

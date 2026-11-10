@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { FileText, Trash2 } from "lucide-react";
+import { ChevronDown, FileText, Trash2 } from "lucide-react";
 import { uploadFiles } from "@/api/uploads";
 import {
   getInstallationBilling,
@@ -40,6 +40,7 @@ export default function InstallationBillingPanel({ order, darkMode = false, read
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showChargeForm, setShowChargeForm] = useState(false);
+  const [installationDetailsExpanded, setInstallationDetailsExpanded] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [evidencePreview, setEvidencePreview] = useState(null);
   const [chargeDraft, setChargeDraft] = useState({ description: "", reason: "", files: [], items: [{ description: "", category: "Labor", quantity: 1, unit_price: "" }] });
@@ -109,11 +110,12 @@ export default function InstallationBillingPanel({ order, darkMode = false, read
 
   return (
     <section className={`${issuesOnly ? "mt-3 p-3" : "mt-4 p-3 sm:p-4"} rounded-xl border ${panelClass}`} aria-label={issuesOnly ? "Installation Issue" : undefined} aria-labelledby={issuesOnly ? undefined : "installation-billing-title"}>
-      {issuesOnly && <h3 className="mb-3 text-sm font-bold">Installation Issue</h3>}
+      {issuesOnly && <button type="button" aria-expanded={installationDetailsExpanded} aria-controls={`installation-issue-details-${orderId}`} onClick={() => setInstallationDetailsExpanded((expanded) => !expanded)} className={`flex w-full items-center justify-between gap-3 text-left text-sm font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${installationDetailsExpanded ? "mb-3" : ""}`}><span>Installation Issue</span><ChevronDown size={18} className={`shrink-0 transition-transform ${installationDetailsExpanded ? "rotate-180" : ""}`} aria-hidden="true" /></button>}
       {!issuesOnly && <div className="flex flex-wrap items-start justify-between gap-3">
         <div><h3 id="installation-billing-title" className="text-sm font-bold">Installation Issues</h3><p className={`mt-1 text-xs ${darkMode ? "text-slate-400" : "text-slate-500"}`}>Track extra charges and receipts related to installation.</p></div>
         {isAdmin && !readOnly && <button type="button" onClick={() => setShowChargeForm((value) => !value)} className="rounded-lg bg-red-700 px-3 py-2 text-xs font-semibold text-white">{showChargeForm ? "Close charge form" : "Add extra charge"}</button>}
       </div>}
+      {(!issuesOnly || installationDetailsExpanded) && <div id={issuesOnly ? `installation-issue-details-${orderId}` : undefined}>
       {!issuesOnly && showChargeForm && isAdmin && !readOnly && <form onSubmit={saveCharge} className={`mt-3 grid gap-2 rounded-lg border p-3 sm:grid-cols-2 ${darkMode ? "border-slate-700" : "border-slate-200"}`}>
         <label className="text-xs font-semibold sm:col-span-2">Charge description<input className={`${fieldClass} mt-1`} value={chargeDraft.description} onChange={(e) => setChargeDraft({ ...chargeDraft, description: e.target.value })} maxLength={1000} required /></label>
         <label className="text-xs font-semibold sm:col-span-2">Reason for additional charge<textarea className={`${fieldClass} mt-1`} value={chargeDraft.reason} onChange={(e) => setChargeDraft({ ...chargeDraft, reason: e.target.value })} maxLength={2000} required rows={2} /></label>
@@ -194,6 +196,7 @@ export default function InstallationBillingPanel({ order, darkMode = false, read
         </section>}
         {!issuesOnly && isCustomer && <div className="mt-4 space-y-2"><h4 className="text-xs font-bold uppercase tracking-wide opacity-70">Installation charges and receipts</h4>{data.charges.length === 0 ? <p className="text-xs opacity-60">No additional installation charges.</p> : data.charges.map((charge) => { const receipt = data.receipts.find((entry) => String(entry._id) === String(charge.receipt)); return <article key={charge._id} className={`rounded-lg border p-3 ${darkMode ? "border-slate-700" : "border-slate-200"}`}><strong className="text-sm">{charge.description}</strong><p className="mt-1 text-xs">Reason: {charge.reason}</p><p className="mt-1 font-bold">{money(charge.total)} · {receipt ? receiptStatus(receipt) : "Added to balance"}</p>{charge.evidence_urls?.length > 0 && <div className="mt-1 flex gap-2">{charge.evidence_urls.map((url, index) => <button key={url} type="button" onClick={() => setEvidencePreview({ url, label: `Supporting file ${index + 1}` })} className="text-xs font-semibold text-blue-600 underline">Supporting file {index + 1}</button>)}</div>}{receipt && <button type="button" className="mt-2 rounded-lg border px-3 py-2 text-xs font-semibold" onClick={() => setSelectedReceipt(receiptSnapshot(receipt))}>View / Download Receipt · {receipt.receipt_number}</button>}</article>; })}</div>}
       </>}
+      </div>}
 
       <ExtraChargeReceiptModal receipt={selectedReceipt} darkMode={darkMode} enableSend={isAdmin && !readOnly} onReceiptSent={() => refresh()} onClose={() => setSelectedReceipt(null)} />
       {evidencePreview && <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/75 p-3 sm:p-6" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setEvidencePreview(null); }}><section role="dialog" aria-modal="true" aria-label={evidencePreview.label} className={`flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border shadow-2xl ${panelClass}`}><header className="flex shrink-0 items-center justify-between gap-3 border-b p-3"><h3 className="truncate text-sm font-bold">{evidencePreview.label}</h3><div className="flex shrink-0 items-center gap-2"><a href={evidencePreview.url} target="_blank" rel="noreferrer" className="rounded-lg border px-3 py-2 text-xs font-semibold">Open original</a><button type="button" aria-label="Close evidence preview" onClick={() => setEvidencePreview(null)} className="rounded-lg border p-2"><span aria-hidden="true">×</span></button></div></header><div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-black/5 p-2 sm:p-4">{isImageEvidence(evidencePreview.url) ? <img src={evidencePreview.url} alt={evidencePreview.label} className="max-h-[78vh] max-w-full rounded-lg object-contain" /> : isPdfEvidence(evidencePreview.url) ? <iframe title={evidencePreview.label} src={evidencePreview.url} className="h-[78vh] w-full rounded-lg bg-white" /> : <div className="text-center"><p className="text-sm">Preview is unavailable for this file type.</p><a href={evidencePreview.url} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm font-semibold text-blue-600 underline">Open or download file</a></div>}</div></section></div>}

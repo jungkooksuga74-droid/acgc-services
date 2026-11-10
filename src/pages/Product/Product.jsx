@@ -2785,7 +2785,7 @@ function Products() {
                     <p className={darkMode ? "text-slate-400" : "text-gray-500"}>No products match the selected filters.</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-[18px]">
+                  <div className="admin-product-list grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-[18px]">
                     {currentProducts.map((product) => {
                       const imageSrc = resolveProductImage(product);
                       const productName = product.product_name || product.name || "Unnamed Product";
@@ -2809,8 +2809,8 @@ function Products() {
                         ? `${productWidth.toLocaleString()} × ${productHeight.toLocaleString()} ${product.measurement_unit || "in"}`
                         : product.standard_size || "";
                       return (
-                        <article key={product._id || product.id} className={`group flex h-full flex-col overflow-hidden rounded-2xl border transition duration-150 hover:-translate-y-0.5 ${product.is_featured ? "border-amber-400 hover:border-amber-500 glow-bar-amber" : darkMode ? "border-slate-700 hover:border-slate-500" : "border-slate-200 hover:border-slate-400"} ${darkMode ? "bg-slate-900" : "bg-white"} motion-reduce:animate-none motion-reduce:transition-none motion-reduce:hover:transform-none`}>
-                          <div className={`relative aspect-[4/3] overflow-hidden ${darkMode ? "bg-slate-800" : "bg-slate-100"}`}>
+                        <article key={product._id || product.id} className={`admin-product-card group flex h-full flex-col overflow-hidden rounded-2xl border transition duration-150 hover:-translate-y-0.5 ${product.is_featured ? "border-amber-400 hover:border-amber-500 glow-bar-amber" : darkMode ? "border-slate-700 hover:border-slate-500" : "border-slate-200 hover:border-slate-400"} ${darkMode ? "bg-slate-900" : "bg-white"} motion-reduce:animate-none motion-reduce:transition-none motion-reduce:hover:transform-none`}>
+                          <div className={`admin-product-image relative aspect-[4/3] overflow-hidden ${darkMode ? "bg-slate-800" : "bg-slate-100"}`}>
                             <img
                               src={imageSrc}
                               alt={productName}
@@ -2859,7 +2859,7 @@ function Products() {
                               </button>
                             </div>
                           </div>
-                          <div className="flex flex-1 flex-col gap-3 p-4">
+                          <div className="admin-product-details flex flex-1 flex-col gap-3 p-4">
                             <div>
                               <span className={`inline-flex max-w-full truncate rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.08em] ${darkMode ? "border-slate-700 bg-slate-800 text-red-300" : "border-slate-200 bg-slate-50 text-red-700"}`}>
                                 {product.category || "General"}
@@ -2882,7 +2882,7 @@ function Products() {
                               </div>
                             </div>
                           </div>
-                          <footer className={`flex items-center justify-between gap-3 border-t px-4 py-2.5 ${darkMode ? "border-slate-700 bg-slate-800" : "border-slate-200 bg-slate-50"}`}>
+                          <footer className={`admin-product-status flex items-center justify-between gap-3 border-t px-4 py-2.5 ${darkMode ? "border-slate-700 bg-slate-800" : "border-slate-200 bg-slate-50"}`}>
                             <span className={`flex min-w-0 items-center gap-2 truncate text-xs font-normal ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
                               <span className={`h-[7px] w-[7px] shrink-0 rounded-full ${product.is_active ? "bg-emerald-500" : "bg-slate-400"}`} aria-hidden="true" />
                               {product.is_active ? "Active product" : "Inactive product"}

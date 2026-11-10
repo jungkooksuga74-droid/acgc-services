@@ -60,6 +60,46 @@ import { getOptimizedProductImageUrl, getProductImageSource, getProductImageSrcS
 const createLandingCartId = () => globalThis.crypto?.randomUUID?.()
   || `landing-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
+function LandingScrollCue({ reduceMotion, targetId, label = "Scroll down to more content" }) {
+  const [isVisible, setIsVisible] = useState(true);
+
+  useEffect(() => {
+    const target = document.getElementById(targetId);
+    if (!target) {
+      setIsVisible(false);
+      return undefined;
+    }
+
+    const updateVisibility = () => {
+      setIsVisible(target.getBoundingClientRect().top >= window.innerHeight);
+    };
+
+    updateVisibility();
+    window.addEventListener("scroll", updateVisibility, { passive: true });
+    window.addEventListener("resize", updateVisibility);
+    return () => {
+      window.removeEventListener("scroll", updateVisibility);
+      window.removeEventListener("resize", updateVisibility);
+    };
+  }, [targetId]);
+
+  if (!isVisible) return null;
+
+  return (
+    <div className="mt-8 flex justify-center">
+      <button
+        type="button"
+        onClick={() => document.getElementById(targetId)?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" })}
+        aria-label={label}
+        title={label}
+        className="inline-flex h-14 w-14 items-center justify-center rounded-full border-2 border-red-100 bg-white text-red-700 shadow-[0_8px_24px_rgba(220,38,38,0.24)] ring-4 ring-red-400/20 transition duration-200 hover:-translate-y-1 hover:scale-105 hover:bg-red-50 hover:text-red-800 active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-300 motion-reduce:transition-none"
+      >
+        <ChevronDown size={30} strokeWidth={3} aria-hidden="true" className={reduceMotion ? "" : "animate-bounce"} />
+      </button>
+    </div>
+  );
+}
+
 function LandingPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -87,6 +127,7 @@ function LandingPage() {
     const section = initialSearchParams.get("section");
     return validSections.includes(section) ? section : "home";
   });
+  const [showHeroScrollArrow, setShowHeroScrollArrow] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedProductReviews, setSelectedProductReviews] = useState([]);
   const [selectedProductReviewsLoading, setSelectedProductReviewsLoading] = useState(false);
@@ -105,7 +146,9 @@ function LandingPage() {
   const [productType, setProductType] = useState(() => initialSearchParams.get("type") || "All");
   const [productPage, setProductPage] = useState(() => Math.max(1, Number(initialSearchParams.get("page")) || 1));
   const [productsPerPage, setProductsPerPage] = useState(() => {
-    const requested = Number(initialSearchParams.get("perPage"));
+    const requestedValue = initialSearchParams.get("perPage");
+    if (requestedValue === "all") return 0;
+    const requested = Number(requestedValue);
     return [4, 8, 12, 16].includes(requested) ? requested : 8;
   });
   const [featuredProductStats, setFeaturedProductStats] = useState({});
@@ -124,6 +167,39 @@ function LandingPage() {
   const [trackingLoading, setTrackingLoading] = useState(false);
   const [showAllTrackedItems, setShowAllTrackedItems] = useState(false);
   const [pendingActionError, setPendingActionError] = useState("");
+
+  useEffect(() => {
+    if (active !== "home") {
+      setShowHeroScrollArrow(false);
+      return undefined;
+    }
+
+    const heroSection = document.getElementById("home");
+    const featuredSection = document.getElementById("featured-products");
+    if (!heroSection || !featuredSection || typeof IntersectionObserver === "undefined") {
+      setShowHeroScrollArrow(true);
+      return undefined;
+    }
+
+    let heroIsVisible = true;
+    let featuredIsVisible = false;
+    setShowHeroScrollArrow(true);
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.target === heroSection) heroIsVisible = entry.isIntersecting;
+        if (entry.target === featuredSection) {
+          featuredIsVisible = entry.isIntersecting && entry.intersectionRatio >= 0.2;
+        }
+      });
+      setShowHeroScrollArrow(heroIsVisible && !featuredIsVisible);
+    }, { threshold: [0, 0.2] });
+
+    observer.observe(heroSection);
+    observer.observe(featuredSection);
+    return () => observer.disconnect();
+  }, [active]);
+
   const ratedLandingReviews = selectedProductReviews.filter((review) => Number(review.rating) >= 1 && Number(review.rating) <= 5);
   const landingReviewAverage = ratedLandingReviews.length
     ? ratedLandingReviews.reduce((sum, review) => sum + Number(review.rating), 0) / ratedLandingReviews.length
@@ -169,7 +245,7 @@ function LandingPage() {
     else params.delete("type");
     if (productPage > 1) params.set("page", String(productPage));
     else params.delete("page");
-    if (productsPerPage !== 8) params.set("perPage", String(productsPerPage));
+    if (productsPerPage !== 8) params.set("perPage", productsPerPage === 0 ? "all" : String(productsPerPage));
     else params.delete("perPage");
 
     const nextSearch = params.toString();
@@ -735,10 +811,11 @@ function LandingPage() {
     const matchesType = productType === "All" || String(product.product_type || product.type || "").toLowerCase() === productType.toLowerCase();
     return matchesSearch && matchesCategory && matchesType;
   });
-  const productPageCount = Math.max(1, Math.ceil(visibleProducts.length / productsPerPage));
+  const effectiveProductsPerPage = productsPerPage === 0 ? Math.max(visibleProducts.length, 1) : productsPerPage;
+  const productPageCount = Math.max(1, Math.ceil(visibleProducts.length / effectiveProductsPerPage));
   const currentProductPage = Math.min(productPage, productPageCount);
-  const productPageStart = (currentProductPage - 1) * productsPerPage;
-  const pagedProducts = visibleProducts.slice(productPageStart, productPageStart + productsPerPage);
+  const productPageStart = (currentProductPage - 1) * effectiveProductsPerPage;
+  const pagedProducts = visibleProducts.slice(productPageStart, productPageStart + effectiveProductsPerPage);
   const displayedProducts = isMobile ? visibleProducts : pagedProducts;
   const productEstimatorWidth = Number(productEstimatorForm.width) || 0;
   const productEstimatorHeight = Number(productEstimatorForm.height) || 0;
@@ -1265,6 +1342,17 @@ function LandingPage() {
                 </div>
               </div>
             </div>
+            {showHeroScrollArrow && (
+              <button
+                type="button"
+                onClick={() => document.getElementById("featured-products")?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" })}
+                aria-label="Scroll down to discover products"
+                title="Scroll down to discover products"
+                className="absolute bottom-3 left-1/2 z-10 inline-flex h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full border-2 border-red-100 bg-white text-red-700 shadow-[0_8px_24px_rgba(220,38,38,0.24)] ring-4 ring-red-400/20 transition duration-200 hover:-translate-y-1 hover:scale-105 hover:bg-red-50 hover:text-red-800 active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[#341017] motion-reduce:transition-none"
+              >
+                <ChevronDown size={30} strokeWidth={3} aria-hidden="true" className={reduceMotion ? "" : "animate-bounce"} />
+              </button>
+            )}
           </section>
         </>
       )}
@@ -1384,7 +1472,9 @@ function LandingPage() {
             )}
           </div>
 
-          {canSeeCustomerRatings && <section className="mt-8 rounded-[30px] border border-white/60 bg-white/[0.32] px-6 py-8 shadow-[0_20px_48px_rgba(15,23,42,0.06)] backdrop-blur-2xl sm:px-10">
+          {canSeeCustomerRatings && <>
+            <LandingScrollCue reduceMotion={reduceMotion} targetId="customer-ratings" label="Scroll down to customer ratings" />
+            <section id="customer-ratings" className="mt-8 rounded-[30px] border border-white/60 bg-white/[0.32] px-6 py-8 shadow-[0_20px_48px_rgba(15,23,42,0.06)] backdrop-blur-2xl sm:px-10">
             <h2 className="text-center text-3xl font-black text-slate-900">Customer Ratings</h2>
             <div className="mt-8 grid gap-8 md:grid-cols-[220px_1fr] md:items-center">
               <div className="text-center">
@@ -1414,7 +1504,8 @@ function LandingPage() {
                 })}
               </div>
             </div>
-          </section>}
+          </section>
+          </>}
         </section>
       )}
 
@@ -1456,9 +1547,9 @@ function LandingPage() {
     </div>
 
     {isLoadingFeatured ? (
-      <div className="mx-auto grid w-full min-w-0 max-w-[1200px] grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-5">
+      <div className="mx-auto grid w-full min-w-0 max-w-[1200px] grid-cols-1 gap-3 min-[768px]:grid-cols-[repeat(auto-fill,minmax(250px,1fr))] min-[768px]:gap-5">
         {[...Array(8)].map((_, index) => (
-          <div key={index} className="min-h-[410px] animate-pulse rounded-[18px] border border-slate-200 bg-white" />
+          <div key={index} className="min-h-[184px] animate-pulse rounded-[18px] border border-slate-200 bg-white min-[768px]:min-h-[410px]" />
         ))}
       </div>
     ) : featuredError ? (
@@ -1469,7 +1560,7 @@ function LandingPage() {
       </div>
     ) : (
       <>
-        <div className="mx-auto grid w-full min-w-0 max-w-[1200px] grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-5">
+        <div className="mx-auto grid w-full min-w-0 max-w-[1200px] grid-cols-1 gap-3 min-[768px]:grid-cols-[repeat(auto-fill,minmax(250px,1fr))] min-[768px]:gap-5">
           {displayedProducts.map((product, index) => {
             const productId = product._id || product.id || `${product.name}-${index}`;
             const rating = featuredProductStats[product._id || product.id] || { averageRating: 0, ratingsCount: 0 };
@@ -1494,7 +1585,7 @@ function LandingPage() {
                 }}
                 className="landing-product-card group relative flex h-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-[18px] border border-[var(--product-border)] bg-[var(--product-card)] shadow-[0_4px_14px_rgba(30,24,16,0.08)] transition-[transform,box-shadow,border-color] duration-[180ms] ease-out hover:-translate-y-1 hover:border-red-300 hover:shadow-[0_16px_36px_rgba(30,24,16,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 motion-reduce:transition-none"
               >
-                <div className="group/image relative aspect-[4/3] overflow-hidden bg-slate-100">
+                <div className="product-card-image group/image relative aspect-[4/3] overflow-hidden bg-slate-100">
                   <div data-product-image-skeleton className="absolute inset-0 animate-pulse bg-slate-200 motion-reduce:animate-none" />
                   <img
                     src={image || PRODUCT_IMAGE_PLACEHOLDER}
@@ -1511,7 +1602,7 @@ function LandingPage() {
                     className="h-full w-full object-cover transition-transform duration-[350ms] ease-out group-hover/image:scale-105 motion-reduce:transition-none"
                   />
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[45%] bg-gradient-to-t from-black/30 to-transparent" />
-                  <div className="absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-2 p-3">
+                  <div className="product-card-badges absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-2 p-3">
                     {product.is_featured ? (
                       <>
                         <span aria-label="Top Product" title="Top Product" className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-[var(--product-gold)] px-[11px] py-[5px] text-[10.5px] font-bold uppercase tracking-[0.07em] text-[var(--product-gold-text)]">
@@ -1529,7 +1620,7 @@ function LandingPage() {
                   </div>
                 </div>
 
-                <div className="flex min-w-0 flex-1 flex-col p-4">
+                <div className="product-card-details flex min-w-0 flex-1 flex-col p-4">
                   <div className="min-w-0">
                     <h3 className="line-clamp-2 text-[16.5px] font-extrabold leading-tight text-[var(--product-text)]" title={productName}>{productName}</h3>
                     <p className="mt-1 truncate text-[12.5px] font-medium text-[var(--product-muted)]">{category}</p>
@@ -1545,14 +1636,14 @@ function LandingPage() {
                   )}
 
                   {String(product.pricing_method || product.unit).toLowerCase() === "blade" && product.sell_with_frame && product.blade_frame_types?.length > 0 && (
-                    <p className="mt-2 flex min-h-[62px] flex-wrap content-center items-baseline gap-x-1 text-sm leading-5 text-[var(--product-text)]" title={`With frame: ${product.blade_frame_types.map((frame) => frame.name).join(" / ")}`}>
+                    <p className="product-card-metrics mt-2 flex min-h-[62px] flex-wrap content-center items-baseline gap-x-1 text-sm leading-5 text-[var(--product-text)]" title={`With frame: ${product.blade_frame_types.map((frame) => frame.name).join(" / ")}`}>
                       <span className="font-semibold text-[var(--product-muted)]">With frame:</span>
                       <span className="font-bold">{product.blade_frame_types.map((frame) => frame.name).join(" / ")}</span>
                     </p>
                   )}
 
                   {String(product.pricing_method || product.unit).toLowerCase() !== "blade" && (
-                    <div className="mt-2 flex min-h-[62px] flex-col justify-center divide-y divide-dashed divide-[var(--product-border)] text-sm">
+                    <div className="product-card-metrics mt-2 flex min-h-[62px] flex-col justify-center divide-y divide-dashed divide-[var(--product-border)] text-sm">
                       {!isBladeProduct(product) && (productDimensions.width > 0 || productDimensions.height > 0) && (
                         <p className="flex items-center justify-between gap-2 py-1.5 first:pt-0 last:pb-0">
                           <span className="shrink-0 font-medium text-[var(--product-muted)]">Width × Height</span>
@@ -1568,7 +1659,7 @@ function LandingPage() {
                     </div>
                   )}
 
-                  <div className="mt-auto flex items-end justify-between gap-3 border-t border-[var(--product-border)] pt-3">
+                  <div className="product-card-footer mt-auto flex items-end justify-between gap-3 border-t border-[var(--product-border)] pt-3">
                     <div className="min-w-0">
                       <p className="text-[10px] uppercase tracking-[0.1em] text-[var(--product-muted)]">Starting from</p>
                       <p className="mt-1 truncate text-[22px] font-extrabold leading-tight text-[var(--product-price)]">{getProductPrice(product)}</p>
@@ -1610,45 +1701,62 @@ function LandingPage() {
         </div>
 
         {!isMobile && visibleProducts.length > 0 && (
-          <div className="mt-6 grid min-h-[116px] grid-cols-1 items-center gap-4 rounded-[24px] border border-red-100 bg-white/90 px-5 py-5 shadow-[0_12px_30px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:grid-cols-[1fr_auto] md:grid-cols-[minmax(240px,1fr)_auto_minmax(240px,1fr)] md:gap-6">
-            <label className="flex items-center gap-4 text-base font-medium text-slate-600">
-              <span className="w-16 shrink-0 leading-6">Items per page</span>
+          <div className="mt-6 grid gap-4 rounded-[20px] border border-red-100 bg-white/90 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] backdrop-blur-xl md:grid-cols-[1fr_auto_1fr] md:items-center">
+            <div className="flex min-w-0 items-center gap-3 text-sm font-medium text-slate-600">
+              <span className="shrink-0 whitespace-nowrap">Items per page</span>
               <CustomerDropdown
                 ariaLabel="Items per page"
-                value={productsPerPage}
+                value={productsPerPage === 0 ? "all" : productsPerPage}
                 onChange={(event) => {
-                  setProductsPerPage(Number(event.target.value));
+                  setProductsPerPage(event.target.value === "all" ? 0 : Number(event.target.value));
                   setProductPage(1);
                 }}
-                className="h-[52px] w-[138px] rounded-[20px] border border-red-300 bg-white px-4 text-base font-semibold text-slate-800 outline-none ring-2 ring-red-200 focus:border-red-500 focus:ring-red-300"
+                className="h-11 !w-36 min-w-0 shrink-0 rounded-xl px-3"
               >
                 <option value={4}>4</option>
                 <option value={8}>8</option>
                 <option value={12}>12</option>
                 <option value={16}>16</option>
+                <option value="all">All products</option>
               </CustomerDropdown>
-            </label>
-            <p className="text-center text-base font-medium text-slate-600">
-              Showing {productPageStart + 1}-{Math.min(productPageStart + productsPerPage, visibleProducts.length)} of {visibleProducts.length}
-            </p>
-            <div className="col-span-full flex items-center justify-center gap-4 sm:col-span-2 md:col-span-1 md:justify-end">
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-2">
               <button
                 type="button"
                 onClick={() => setProductPage((page) => Math.max(1, page - 1))}
                 disabled={currentProductPage === 1}
-                className="rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-base font-semibold text-slate-700 transition hover:border-red-200 hover:text-red-700 disabled:cursor-not-allowed disabled:text-slate-400 disabled:opacity-60"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-red-200 hover:text-red-600 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
               >
                 Previous
               </button>
-              <span className="min-w-16 text-center text-base font-bold text-slate-700">{currentProductPage} / {productPageCount}</span>
+              <div className="flex flex-wrap items-center justify-center gap-1">
+                {Array.from({ length: Math.max(1, productPageCount) }, (_, index) => index + 1).map((pageNumber) => (
+                  <button
+                    key={pageNumber}
+                    type="button"
+                    onClick={() => setProductPage(pageNumber)}
+                    aria-current={pageNumber === currentProductPage ? "page" : undefined}
+                    className={`h-9 min-w-9 rounded-xl px-2 text-sm font-bold transition ${
+                      pageNumber === currentProductPage
+                        ? "bg-red-600 text-white shadow-sm"
+                        : "border border-slate-200 bg-white text-slate-700 hover:border-red-200 hover:text-red-600"
+                    }`}
+                  >
+                    {pageNumber}
+                  </button>
+                ))}
+              </div>
               <button
                 type="button"
                 onClick={() => setProductPage((page) => Math.min(productPageCount, page + 1))}
                 disabled={currentProductPage === productPageCount}
-                className="rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-base font-semibold text-slate-700 transition hover:border-red-200 hover:text-red-700 disabled:cursor-not-allowed disabled:text-slate-400 disabled:opacity-60"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-red-200 hover:text-red-600 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
               >
                 Next
               </button>
+            </div>
+            <div className="text-center text-sm font-medium text-slate-600 md:text-right">
+              Showing {productPageStart + 1}-{Math.min(productPageStart + effectiveProductsPerPage, visibleProducts.length)} of {visibleProducts.length} products
             </div>
           </div>
         )}
@@ -2290,7 +2398,7 @@ function LandingPage() {
 
 {active === "about" && (
 <section id="about" className="about-business-page scroll-mt-24">
-  <AboutBusinessContent />
+  <AboutBusinessContent scrollCue={<LandingScrollCue reduceMotion={reduceMotion} targetId="about-details" label="Scroll down to more information" />} />
 </section>
 )}
 {/* FOOTER */}

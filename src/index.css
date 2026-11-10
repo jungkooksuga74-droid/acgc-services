@@ -722,6 +722,186 @@ body:has(.mobile-fullscreen-overlay) .customer-mobile-navigation {
   color: var(--product-border);
 }
 
+@media (max-width: 767px) {
+  .admin-product-list {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .admin-product-card {
+    display: grid;
+    grid-template-columns: minmax(124px, 40%) minmax(0, 1fr);
+    grid-template-rows: minmax(210px, auto) auto;
+    height: auto;
+    min-height: 0;
+  }
+
+  .admin-product-card > .admin-product-image {
+    grid-column: 1;
+    grid-row: 1;
+    min-height: 210px;
+    height: 100%;
+    aspect-ratio: auto;
+  }
+
+  .admin-product-image > div:last-child {
+    right: 8px;
+    bottom: 8px;
+    gap: 4px;
+  }
+
+  .admin-product-image > div:last-child button {
+    width: 30px;
+    height: 30px;
+  }
+
+  .admin-product-card > .admin-product-details {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    padding: 12px 10px;
+    gap: 8px;
+  }
+
+  .admin-product-details h3 {
+    display: -webkit-box;
+    overflow: hidden;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .admin-product-details > div:first-child > p {
+    white-space: normal;
+  }
+
+  .admin-product-details > div:last-child {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .admin-product-details > div:last-child > div:last-child {
+    max-width: 100%;
+    text-align: left;
+  }
+
+  .admin-product-details > div:last-child > div:last-child p {
+    display: inline;
+    margin-right: 6px;
+  }
+
+  .admin-product-details > div:last-child > div:first-child > p:last-child {
+    font-size: 18px;
+  }
+
+  .admin-product-card > .admin-product-status {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    padding: 8px 12px;
+  }
+}
+
+@media (max-width: 380px) {
+  .admin-product-card {
+    grid-template-columns: minmax(124px, 42%) minmax(0, 1fr);
+  }
+
+  .admin-product-card > .admin-product-image {
+    min-height: 220px;
+  }
+
+  .admin-product-details > div:last-child > div:first-child > p:last-child {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 767px) {
+  .customer-product-card,
+  .landing-product-card {
+    flex-direction: row;
+    height: 196px;
+    min-height: 196px;
+    max-height: 196px;
+  }
+
+  .customer-product-card > .product-card-image,
+  .landing-product-card > .product-card-image {
+    align-self: stretch;
+    flex: 0 0 34%;
+    width: 34%;
+    min-width: 112px;
+    max-width: 146px;
+    aspect-ratio: auto;
+  }
+
+  .customer-product-card > .product-card-details,
+  .landing-product-card > .product-card-details {
+    min-width: 0;
+    min-height: 0;
+    padding: 10px;
+    overflow: hidden;
+  }
+
+  .customer-product-card .product-card-badges,
+  .landing-product-card .product-card-badges {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+    padding: 8px;
+  }
+
+  .customer-product-card .product-card-badges > span,
+  .landing-product-card .product-card-badges > span {
+    max-width: 100%;
+    padding: 4px 7px;
+    font-size: 8px;
+  }
+
+  .customer-product-card .customer-product-rating,
+  .landing-product-card .customer-product-rating {
+    margin-top: 6px;
+    gap: 4px;
+  }
+
+  .customer-product-card .product-card-metrics,
+  .landing-product-card .product-card-metrics {
+    min-height: 0;
+    margin-top: 6px;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .customer-product-card .product-card-metrics > p,
+  .landing-product-card .product-card-metrics > p {
+    gap: 4px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+
+  .customer-product-card .product-card-footer,
+  .landing-product-card .product-card-footer {
+    gap: 5px;
+    padding-top: 8px;
+  }
+
+  .customer-product-card .product-card-footer > div:first-child > p:last-child,
+  .landing-product-card .product-card-footer > div:first-child > p:last-child {
+    font-size: 18px;
+  }
+
+  .customer-product-card .product-card-footer > div:last-child,
+  .landing-product-card .product-card-footer > div:last-child {
+    gap: 5px;
+  }
+
+  .customer-product-card .product-card-footer button,
+  .landing-product-card .product-card-footer button {
+    width: 32px;
+    height: 32px;
+  }
+}
+
 .admin-theme-light {
   min-height: 100vh;
   background-color: #f1f2f1;
@@ -2197,31 +2377,609 @@ select:not([multiple]) option:hover {
 }
 
 .contract-paper {
-  width: 210mm;
-  max-width: 100%;
-  min-height: 297mm;
+  width: min(100%, 860px);
+  max-width: 860px;
   box-sizing: border-box;
-  border: 0;
-  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border: 1px solid #dfdbd0;
+  border-radius: 14px;
+  padding: 20px 28px 24px;
+  background: #fffefc;
+  color: #1b1d27;
+  font-size: 13px;
+  line-height: 1.5;
+  box-shadow: 0 12px 32px rgba(20, 16, 10, 0.12);
+}
+
+.contract-page-scroll {
+  padding: 20px;
+  background: #d9d6cd;
 }
 
 .contract-brand-header {
-  background-color: #020617;
-  background-image:
-    radial-gradient(circle at 100% 0%, transparent 0 138px, rgba(255, 255, 255, .1) 139px 140px, transparent 141px 190px, rgba(255, 255, 255, .08) 191px 192px, transparent 193px),
-    linear-gradient(135deg, #020617 0%, #111827 56%, #450a0a 100%);
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  min-height: 86px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  overflow: hidden;
+  margin: -20px -28px 0;
+  padding: 18px 28px;
+  background: linear-gradient(105deg, #14182b 0%, #191a2b 60%, #3b111c 100%);
+  color: #fff;
+}
+
+.contract-brand-header::before {
+  position: absolute;
+  z-index: -1;
+  top: -116px;
+  right: -78px;
+  width: 280px;
+  height: 280px;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  box-shadow: 0 0 0 16px rgba(255, 255, 255, 0.04), 0 0 0 34px rgba(255, 255, 255, 0.025);
+  content: "";
+  pointer-events: none;
+}
+
+.contract-brand-identity {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.contract-brand-logo {
+  display: block;
+  width: 64px;
+  height: 64px;
+  flex: 0 0 64px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.7));
+}
+
+.contract-brand-copy {
+  min-width: 0;
+}
+
+.contract-brand-copy p:first-child {
+  color: #fff;
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.contract-brand-copy p:last-child {
+  margin-top: 3px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.contract-brand-header h1 {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  color: #fff;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.15;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.contract-info-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px 18px;
+  border-bottom: 1px solid #dfdbd0;
+  padding: 0 0 15px;
+}
+
+.contract-info-contract,
+.contract-info-generated,
+.contract-info-order {
+  grid-column: span 2;
+}
+
+.contract-info-customer {
+  grid-column: span 2;
+}
+
+.contract-info-address {
+  grid-column: span 4;
+}
+
+.contract-info-item {
+  min-width: 0;
+}
+
+.contract-info-item > span {
+  display: block;
+  color: #7a1220;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.contract-info-item > p {
+  margin-top: 2px;
+  color: #1b1d27;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.contract-section {
+  min-width: 0;
+}
+
+.contract-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  color: #7a1220;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.contract-section-title::before {
+  width: 4px;
+  height: 15px;
+  flex: 0 0 4px;
+  border-radius: 999px;
+  background: #c8102e;
+  content: "";
+}
+
+.contract-site-notes {
+  margin: 0 0 10px;
+  color: #5d6272;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.contract-scope-chips {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.contract-scope-chip {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+  border: 1px solid #dfdbd0;
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: #f6f4ee;
+}
+
+.contract-scope-chip span {
+  color: #5d6272;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.contract-scope-chip strong {
+  color: #1b1d27;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.contract-items-section {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.contract-table-block {
+  overflow-x: auto;
+  border: 1px solid #dfdbd0;
+  border-radius: 12px;
+  background: #fffefc;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.contract-items-table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  color: #1b1d27;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.contract-items-table thead {
+  background: #7a1220;
+  color: #fff;
+}
+
+.contract-items-table th {
+  padding: 10px 14px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.contract-items-table td {
+  border-bottom: 1px solid #ebe7de;
+  padding: 12px 14px;
+  vertical-align: top;
+}
+
+.contract-items-table tbody tr:nth-child(even) {
+  background: #faf9f5;
+}
+
+.contract-items-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.contract-table-index {
+  width: 34px;
+  color: #5d6272;
+}
+
+.contract-table-centered {
+  text-align: center !important;
+}
+
+.contract-table-right {
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+.contract-table-product {
+  font-weight: 700;
+}
+
+.contract-table-subtext {
+  margin-top: 4px;
+  color: #5d6272;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.contract-table-subtext span,
+.contract-table-charge span,
+.contract-table-amount {
+  color: #13795a;
+  font-weight: 800;
+}
+
+.contract-table-charge {
+  margin-top: 4px;
+  color: #7a1220;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.contract-table-additional-charge {
+  background: #fbf7e8;
+}
+
+.contract-table-total-label,
+.contract-table-total-amount {
+  border-top: 1px solid #e8c9ce !important;
+  background: #fbeeee;
+  padding: 12px 14px !important;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.contract-table-total-label {
+  color: #1b1d27;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.contract-table-total-amount {
+  color: #13795a;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.contract-policy-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.contract-policy-card {
+  min-width: 0;
+  border: 1px solid #efcbd0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: #fbeeee;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.contract-policy-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #7a1220;
+}
+
+.contract-policy-heading > span {
+  display: flex;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #7a1220;
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.contract-policy-heading h3 {
+  padding-top: 2px;
+  color: #7a1220;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.contract-policy-card > p {
+  margin-top: 7px;
+  color: #1b1d27;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.contract-payment-warranty-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 14px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.contract-payment-card,
+.contract-warranty-card {
+  min-width: 0;
+  border: 1px solid #dfdbd0;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.contract-payment-card {
+  background: #f6f4ee;
+}
+
+.contract-payment-card .contract-section-title {
+  margin-bottom: 8px;
+}
+
+.contract-payment-copy {
+  color: #1b1d27;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.contract-payment-amounts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.contract-payment-amount {
+  min-width: 0;
+  border: 1px solid #dfdbd0;
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: #fffefc;
+}
+
+.contract-payment-amount span {
+  display: block;
+  color: #5d6272;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.contract-payment-amount strong {
+  display: block;
+  margin-top: 2px;
+  color: #13795a;
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.contract-agreed-payment-date {
+  margin-top: 10px;
+  border: 1px solid #ead99e;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff8df;
+  color: #3b2a00;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.contract-agreed-payment-date span {
+  font-weight: 700;
+}
+
+.contract-warranty-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border-color: #b7e4d2;
+  background: #e4f5ee;
+  color: #14563f;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.contract-warranty-card > svg {
+  flex: 0 0 22px;
+  margin-top: 1px;
+  color: #13795a;
+}
+
+.contract-warranty-card .contract-section-title {
+  margin-bottom: 8px;
+}
+
+.contract-warranty-card strong {
+  font-weight: 800;
+}
+
+.contract-downpayment-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 12px;
+  padding: 11px 16px;
+  background: #ffc72c;
+  color: #3b2a00;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.contract-downpayment-alert svg {
+  flex: 0 0 16px;
+}
+
+.contract-acknowledgment-section {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.contract-signature-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 40px;
+  margin-top: 12px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.contract-signature-block {
+  min-width: 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.contract-signature-line {
+  display: flex;
+  min-height: 34px;
+  align-items: flex-end;
+  justify-content: center;
+  border-bottom: 1.5px solid #1b1d27;
+  padding: 0 4px 4px;
+  color: #1b1d27;
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.contract-signature-caption {
+  margin-top: 4px;
+  color: #5d6272;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.contract-signature-name {
+  margin-top: 6px;
+  color: #1b1d27;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.contract-signature-date {
+  margin-top: 3px;
+  color: #5d6272;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.contract-accepted-note {
+  align-self: end;
+  border: 1px solid #dfdbd0;
+  border-radius: 10px;
+  padding: 12px;
+  background: #f6f4ee;
+  color: #5d6272;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.contract-signed-grid .contract-signature-name {
+  color: #13795a;
+}
+
+.contract-document-footer {
+  border-top: 1px solid #dfdbd0;
+  padding-top: 10px;
+  color: #5d6272;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.contract-document-footer span {
+  display: block;
+}
+
+.contract-document-footer span:first-child {
+  color: #1b1d27;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
 }
 
 /* Keep the printable contract on its own light palette when the admin shell is dark. */
 .admin-theme-dark .contract-fixed-light,
 .admin-theme-dark #contract-content {
-  color: #1e293b !important;
-  background-color: #fff !important;
+  color: #1b1d27 !important;
+  background-color: #fffefc !important;
   color-scheme: light;
 }
 
 .admin-theme-dark #contract-content section {
-  color: #1e293b !important;
+  color: #1b1d27 !important;
 }
 
 .admin-theme-dark #contract-content .bg-white {
@@ -2327,25 +3085,211 @@ select:not([multiple]) option:hover {
   border-left-color: #c2410c !important;
 }
 
+.contract-toolbar-utility,
+.contract-toolbar-controls {
+  display: contents;
+}
+
 @media (max-width: 640px) {
+  .contract-modal-toolbar {
+    position: sticky;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .contract-toolbar-heading {
+    min-width: 0;
+    padding-right: 40px;
+  }
+
+  .contract-toolbar-heading h2 {
+    font-size: 17px;
+    line-height: 1.25;
+  }
+
+  .contract-toolbar-heading > p {
+    overflow-wrap: anywhere;
+  }
+
+  .contract-toolbar-actions {
+    width: 100%;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
+  .contract-toolbar-utility,
+  .contract-toolbar-controls {
+    display: flex;
+    width: 100%;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .contract-toolbar-actions button,
+  .contract-toolbar-actions span {
+    max-width: 100%;
+    white-space: nowrap;
+  }
+
+  .contract-toolbar-controls > button[aria-label="Close contract"] {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    z-index: 2;
+    display: inline-flex;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    align-items: center;
+    justify-content: center;
+    margin-left: 0;
+    border-radius: 8px;
+    padding: 0;
+  }
+
   .contract-paper {
-    min-height: 0;
-    border-radius: 10px;
+    padding: 18px 16px 20px;
+  }
+
+  .contract-brand-header {
+    margin: -18px -16px 0;
+  }
+
+  .contract-page-scroll {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 680px) {
+  .contract-brand-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .contract-brand-header h1 {
+    text-align: left;
+  }
+
+  .contract-info-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .contract-info-contract,
+  .contract-info-generated,
+  .contract-info-order,
+  .contract-info-customer,
+  .contract-info-address {
+    grid-column: span 1;
+  }
+
+  .contract-scope-chips,
+  .contract-policy-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .contract-paper {
+    padding: 18px 14px 20px;
+  }
+
+  .contract-brand-header {
+    margin: -18px -14px 0;
+    padding: 16px 14px;
+  }
+
+  .contract-brand-copy p:first-child {
+    font-size: 15px;
+  }
+
+  .contract-brand-header h1 {
+    font-size: 21px;
+  }
+
+  .contract-info-grid,
+  .contract-scope-chips,
+  .contract-policy-grid,
+  .contract-payment-warranty-grid,
+  .contract-payment-amounts,
+  .contract-signature-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .contract-signature-grid {
+    gap: 18px;
+  }
+
+  .contract-items-table {
+    min-width: 620px;
   }
 }
 
 @media print {
   @page {
     size: A4 portrait;
-    margin: 0;
+    margin: 10mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  .contract-page-scroll {
+    display: block !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+
+  .contract-modal-overlay {
+    position: static !important;
+    display: block !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+
+  .contract-modal-shell {
+    width: auto !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .contract-modal-toolbar {
+    display: none !important;
   }
 
   .contract-paper {
-    width: 210mm;
+    width: auto;
     max-width: none;
-    min-height: 297mm;
+    min-height: 0;
     border: 0;
     border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .contract-table-block,
+  .contract-policy-card,
+  .contract-payment-warranty-grid,
+  .contract-signature-block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .contract-items-table {
+    min-width: 0;
   }
 }
 
@@ -2574,7 +3518,7 @@ select:not([multiple]) option:hover {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin-top: 12px;
 }
@@ -3097,12 +4041,6 @@ select:not([multiple]) option:hover {
   border-color: #465d79;
   background: #34475f !important;
   color: #d0def1 !important;
-}
-
-.customer-dashboard-order-action {
-  color: #d91032 !important;
-  font-size: 12px;
-  font-weight: 800;
 }
 
 .customer-dashboard-home-container .customer-dashboard-updates-card {
@@ -3726,5 +4664,418 @@ select:not([multiple]) option:hover {
 @media (prefers-reduced-motion: reduce) {
   .about-contact-item {
     transition: none;
+  }
+}
+
+.order-success-overlay {
+  background: rgba(35, 31, 25, 0.3);
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+}
+
+.order-success-dialog {
+  --success-dialog-bg: #fffdfa;
+  --success-surface: #f8f5ed;
+  --success-border: #e7dfd1;
+  --success-text: #1c2430;
+  --success-muted: #667085;
+  --success-green: #16845d;
+  --success-card-check: #fffdfa;
+  position: relative;
+  isolation: isolate;
+  width: min(100%, 580px);
+  max-height: calc(100dvh - 32px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 1px solid var(--success-border);
+  border-radius: 28px;
+  padding: 34px 30px 28px;
+  background: var(--success-dialog-bg);
+  color: var(--success-text);
+  text-align: center;
+  box-shadow: 0 30px 70px rgba(20, 16, 10, 0.28);
+  animation: order-success-enter 0.35s cubic-bezier(0.2, 1.25, 0.35, 1) both;
+  outline: none;
+}
+
+.order-success-dialog.is-dark {
+  --success-dialog-bg: #202c3c;
+  --success-surface: #2a394c;
+  --success-border: #3d4b5e;
+  --success-text: #f3f6fa;
+  --success-muted: #bdc8d6;
+  --success-green: #57d4a2;
+  --success-card-check: #202c3c;
+}
+
+.order-success-dialog::before,
+.order-success-dialog::after {
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  content: "";
+}
+
+.order-success-dialog::before {
+  top: -210px;
+  left: 50%;
+  width: 420px;
+  height: 420px;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.22) 0%, rgba(16, 185, 129, 0.12) 42%, transparent 68%);
+}
+
+.order-success-dialog::after {
+  inset: 0;
+  opacity: 0.16;
+  background-image: radial-gradient(circle, rgba(16, 185, 129, 0.4) 1px, transparent 1.35px);
+  background-size: 22px 22px;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 16%, transparent 38%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 16%, transparent 38%);
+}
+
+.order-success-icon {
+  display: flex;
+  width: 84px;
+  height: 84px;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--success-green);
+  box-shadow: 0 0 0 10px rgba(16, 185, 129, 0.1), 0 0 0 22px rgba(16, 185, 129, 0.05);
+}
+
+.order-success-check-icon circle {
+  stroke-dasharray: 64;
+  stroke-dashoffset: 64;
+  animation: order-success-draw-circle 0.6s ease-out forwards;
+}
+
+.order-success-check-icon path {
+  stroke-dasharray: 16;
+  stroke-dashoffset: 16;
+  animation: order-success-draw-check 0.35s ease-out 0.55s forwards;
+}
+
+.order-success-title {
+  margin: 26px 0 0;
+  color: var(--success-text);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.order-success-items {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.order-success-item {
+  box-sizing: border-box;
+  display: flex;
+  min-width: 0;
+  flex: 0 0 140px;
+  flex-direction: column;
+  border: 1px solid var(--success-border);
+  border-radius: 18px;
+  padding: 8px 8px 10px;
+  background: linear-gradient(180deg, var(--success-dialog-bg) 0%, var(--success-surface) 100%);
+  text-align: left;
+  box-shadow: 0 2px 6px rgba(20, 16, 10, 0.05);
+  animation: order-success-item-enter 0.45s ease-out both;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.order-success-item:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 24px rgba(20, 16, 10, 0.14);
+}
+
+.order-success-image-wrap {
+  position: relative;
+  height: 92px;
+  flex: 0 0 92px;
+  overflow: hidden;
+  border: 1px solid var(--success-border);
+  border-radius: 12px;
+  background: var(--success-surface);
+}
+
+.order-success-image-wrap::after {
+  position: absolute;
+  inset: 50% 0 0;
+  background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.2));
+  content: "";
+  pointer-events: none;
+}
+
+.order-success-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.order-success-item-check {
+  position: absolute;
+  z-index: 1;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--success-card-check);
+  border-radius: 50%;
+  background: #16845d;
+  color: var(--success-card-check);
+}
+
+.order-success-quantity {
+  position: absolute;
+  z-index: 1;
+  bottom: 6px;
+  left: 6px;
+  border-radius: 999px;
+  padding: 2px 9px;
+  background: rgba(20, 26, 40, 0.55);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.35;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+.order-success-item-name {
+  display: -webkit-box;
+  min-height: 34px;
+  overflow: hidden;
+  margin: 10px 4px 0;
+  color: var(--success-text);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.order-success-message {
+  max-width: 460px;
+  margin: 22px auto 0;
+  color: var(--success-muted);
+  font-size: 14.5px;
+  line-height: 1.65;
+}
+
+.order-success-contact {
+  display: inline-flex;
+  max-width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 18px;
+  border: 1px solid var(--success-border);
+  border-radius: 999px;
+  padding: 9px 16px;
+  background: var(--success-surface);
+  color: var(--success-text);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-decoration: none;
+  transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+
+.order-success-contact:hover {
+  border-color: rgba(22, 132, 93, 0.35);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.order-success-contact svg {
+  flex: 0 0 auto;
+  color: var(--success-green);
+}
+
+.order-success-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.order-success-button {
+  display: inline-flex;
+  min-width: 0;
+  height: 50px;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #c8102e;
+  border-radius: 14px;
+  padding: 0 14px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.order-success-button:focus-visible {
+  outline: 2px solid #d7193f;
+  outline-offset: 2px;
+}
+
+.order-success-button-primary {
+  border-color: #ba0b2b;
+  background: linear-gradient(180deg, #d41435 0%, #ad0828 100%);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(200, 16, 46, 0.3);
+}
+
+.order-success-button-primary:hover {
+  background: linear-gradient(180deg, #c8102e 0%, #970821 100%);
+  box-shadow: 0 10px 22px rgba(200, 16, 46, 0.34);
+}
+
+.order-success-button-secondary {
+  background: transparent;
+  color: #c8102e;
+}
+
+.order-success-button-secondary:hover {
+  background: rgba(200, 16, 46, 0.08);
+}
+
+@keyframes order-success-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes order-success-draw-circle {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes order-success-draw-check {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes order-success-item-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 480px) {
+  .order-success-dialog {
+    padding: 30px 18px 22px;
+  }
+
+  .order-success-item {
+    flex-basis: calc(50% - 6px);
+  }
+
+  .order-success-actions {
+    flex-direction: column;
+  }
+
+  .order-success-button {
+    width: 100%;
+    flex: 0 0 50px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .order-success-dialog,
+  .order-success-item,
+  .order-success-contact,
+  .order-success-button {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .order-success-check-icon circle,
+  .order-success-check-icon path {
+    animation: none !important;
+    stroke-dashoffset: 0;
+  }
+
+  .order-success-item:hover {
+    transform: none;
+  }
+}
+
+@media (max-width: 639px) {
+  .legal-document-overlay {
+    align-items: stretch;
+    justify-content: stretch;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .legal-document-dialog {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    width: 100%;
+    height: 100dvh;
+    max-width: none;
+    max-height: 100dvh;
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .legal-document-header {
+    padding-top: calc(0.75rem + env(safe-area-inset-top));
+    padding-right: calc(1rem + env(safe-area-inset-right));
+    padding-left: calc(1rem + env(safe-area-inset-left));
+  }
+
+  .legal-document-scroll {
+    min-height: 0;
+    min-width: 0;
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+    scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .legal-document-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    flex-shrink: 0;
+    background: #f8fafc;
+    padding-right: calc(1rem + env(safe-area-inset-right));
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+    padding-left: calc(1rem + env(safe-area-inset-left));
+    box-shadow: 0 -6px 16px rgb(15 23 42 / 0.08);
   }
 }

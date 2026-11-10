@@ -307,7 +307,7 @@ function Login() {
                   Back to Browse
                 </Link>
 
-                <div className="mt-auto flex flex-wrap justify-center gap-x-2 gap-y-1 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs sm:gap-4 sm:py-2 sm:text-sm">
+                <div className="mt-2 flex shrink-0 flex-wrap justify-center gap-x-2 gap-y-1 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs sm:gap-4 sm:py-2 sm:text-sm lg:mt-auto">
                   <span className="text-slate-500">Don't have an account?</span>
                   <Link
                     to="/signup"
