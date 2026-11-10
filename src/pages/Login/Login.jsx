@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -6,6 +6,7 @@ import {
   EyeOff,
   ChevronLeft,
   Mail,
+  MailCheck,
   LockKeyhole,
   LoaderCircle,
 } from "lucide-react";
@@ -17,6 +18,10 @@ function Login() {
   const location = useLocation();
   const { login, authError, setAuthError, loginLoading } = useAuth();
 
+  const [registrationNotice] = useState(() => {
+    const notice = location.state?.registrationNotice;
+    return notice?.registeredEmail ? notice : null;
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
   const [formData, setFormData] = useState({
@@ -25,6 +30,18 @@ function Login() {
     remember: false,
   });
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const notice = location.state?.registrationNotice;
+    if (!notice?.registeredEmail) return;
+
+    const remainingState = { ...location.state };
+    delete remainingState.registrationNotice;
+    navigate(`${location.pathname}${location.search}${location.hash}`, {
+      replace: true,
+      state: Object.keys(remainingState).length ? remainingState : null,
+    });
+  }, [location.hash, location.pathname, location.search, location.state, navigate]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -123,7 +140,7 @@ function Login() {
 
           {/* RIGHT SIDE */}
 
-          <div className="min-h-0 overflow-hidden bg-white px-4 py-2 text-slate-900 sm:px-6 sm:py-2 lg:flex lg:items-center lg:p-8">
+          <div className="min-h-0 overflow-y-auto overscroll-contain bg-white px-4 py-2 text-slate-900 sm:px-6 sm:py-2 lg:flex lg:items-center lg:p-8">
 
             <div className="mx-auto flex min-h-full w-full max-w-md flex-col lg:min-h-0">
               
@@ -134,6 +151,22 @@ function Login() {
               <p className="mt-1 text-xs leading-5 text-slate-500 sm:text-sm">
                 Enter your credentials to continue.
               </p>
+
+              {registrationNotice ? (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="mt-3 flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 px-3 py-3 text-sm text-sky-900 sm:px-4"
+                >
+                  <MailCheck size={19} className="mt-0.5 shrink-0 text-sky-700" aria-hidden="true" />
+                  <span className="min-w-0 break-words">
+                    Please check your email and verify your account before logging in.
+                    <span className="mt-1 block text-xs text-sky-800">
+                      Verification email sent to {registrationNotice.registeredEmail}.
+                    </span>
+                  </span>
+                </div>
+              ) : null}
 
               <form
                 onSubmit={handleSubmit}

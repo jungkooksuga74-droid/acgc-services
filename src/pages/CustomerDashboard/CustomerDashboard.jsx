@@ -19,7 +19,6 @@ import {
   Phone,
   MapPin,
   Save,
-  ShieldCheck,
   Ruler,
   Package,
   ArrowRight,
@@ -37,7 +36,6 @@ import {
   Star,
   StarHalf,
   Clock3,
-  Wrench,
   Moon,
   Sun,
   ArrowLeft,
@@ -71,7 +69,6 @@ import {
   submitOrderReview,
   getProductReviews,
   getProductReviewSummaries,
-  getCustomerFeedbackSummary,
   cancelCustomerOrder,
 } from "@/api/orders";
 import { uploadFiles } from "@/api/uploads";
@@ -148,6 +145,19 @@ const PRODUCT_IMAGE_PLACEHOLDER =
 
 const CUSTOMER_READ_NOTIFICATIONS_KEY = "acgc-customer-read-notifications";
 const CUSTOMER_DARK_MODE_KEY = "acgc-customer-dark-mode";
+const CUSTOMER_PENDING_ORDER_STATUSES = new Set(["order_submitted", "admin_review", "contract_sent", "contract_accepted"]);
+const CUSTOMER_CLOSED_ORDER_STATUSES = new Set(["cancelled", "contract_declined", "declined", "rejected"]);
+const isCustomerPendingOrder = (order) => {
+  const status = normalizeOrderStatusKey(order?.status);
+  const contractStatus = normalizeOrderStatusKey(order?.contract_status);
+  if (status === "completed" || CUSTOMER_CLOSED_ORDER_STATUSES.has(status) || contractStatus === "declined") return false;
+  return CUSTOMER_PENDING_ORDER_STATUSES.has(status) || contractStatus === "sent";
+};
+const isCustomerActiveOrder = (order) => {
+  const status = normalizeOrderStatusKey(order?.status);
+  const contractStatus = normalizeOrderStatusKey(order?.contract_status);
+  return status !== "completed" && !CUSTOMER_CLOSED_ORDER_STATUSES.has(status) && contractStatus !== "declined" && !isCustomerPendingOrder(order);
+};
 const isOrderCompletedAndReviewable = (order) => {
   if (!order) return false;
   const status = normalizeOrderStatusKey(order?.status);
@@ -423,7 +433,6 @@ function CustomerDashboard() {
   const canEstimatePricing = !maintenanceMode && customerPermissions.can_estimate_pricing;
   const canTrackProducts = !maintenanceMode && customerPermissions.can_track_products;
   const canUploadFeedback = !maintenanceMode && customerPermissions.can_upload_feedback;
-  const canShowRatings = customerPermissions.show_ratings_homepage;
   const canAccessCustomerRatings = canUploadFeedback;
   const isProductModalReadOnly = !canRequestOrders && !canEstimatePricing;
 
@@ -447,14 +456,6 @@ function CustomerDashboard() {
     }
   });
   const [products, setProducts] = useState([]);
-  const [featuredProducts, setFeaturedProducts] = useState([]);
-  const [featuredProductsLoading, setFeaturedProductsLoading] = useState(false);
-  const [featuredProductsError, setFeaturedProductsError] = useState("");
-  const [featuredRatingStats, setFeaturedRatingStats] = useState({
-    average: 0,
-    total: 0,
-    counts: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
-  });
   const [orders, setOrders] = useState([]);
   const notifiedContractVersionsRef = useRef(null);
   const hasLoadedCustomerOrdersRef = useRef(false);
@@ -491,6 +492,7 @@ function CustomerDashboard() {
     );
   };
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersLoadError, setOrdersLoadError] = useState("");
   const [cartItems, setCartItems] = useState([]);
   const [cartPricingProducts, setCartPricingProducts] = useState([]);
   const cartItemsRef = useRef([]);
@@ -583,6 +585,7 @@ function CustomerDashboard() {
   const [batchOrderAgreed, setBatchOrderAgreed] = useState(false);
   const [showBatchSuccessModal, setShowBatchSuccessModal] = useState(false);
   const [batchSuccessItemCount, setBatchSuccessItemCount] = useState(0);
+  const [batchSuccessItems, setBatchSuccessItems] = useState([]);
   const [paymentProofOpenOrderId, setPaymentProofOpenOrderId] = useState(null);
   const [paymentProofForm, setPaymentProofForm] = useState({ amount: "", fileName: "" });
   const [paymentProofError, setPaymentProofError] = useState("");
@@ -742,7 +745,7 @@ function CustomerDashboard() {
   const [installationBillingByOrder, setInstallationBillingByOrder] = useState({});
   const [selectedExtraChargeReceipt, setSelectedExtraChargeReceipt] = useState(null);
   const [highlightedOrderId, setHighlightedOrderId] = useState(null);
-  const validOrderFilters = ["all", "order", "review", "completed", "reviewed", "repair", "cancel"];
+  const validOrderFilters = ["all", "order", "pending", "review", "completed", "reviewed", "repair", "cancel"];
   const [orderFilter, setOrderFilter] = useState(() => {
     const filter = initialDashboardParams.get("orderFilter");
     return validOrderFilters.includes(filter) ? filter : "all";
@@ -1873,70 +1876,6 @@ function CustomerDashboard() {
   };
 
   useEffect(() => {
-    if (loading || !user || !localStorage.getItem("token")) return undefined;
-
-    let active = true;
-
-    const fetchFeaturedProducts = async () => {
-      setFeaturedProductsLoading(true);
-      setFeaturedProductsError("");
-
-      try {
-        let response = await getProducts({ featured: true });
-        let productsList = response.products || [];
-
-        if (!productsList.length) {
-          const fallbackResponse = await getProducts();
-          productsList = fallbackResponse.products || [];
-        }
-
-        const eligibleProducts = productsList.filter((product) => product.is_active !== false);
-        setFeaturedProducts(eligibleProducts.slice(0, 3));
-        setFeaturedProductsLoading(false);
-
-        if (!canAccessCustomerRatings) {
-          setFeaturedRatingStats({ average: 0, total: 0, counts: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } });
-          setFeaturedProducts(eligibleProducts.slice(0, 3));
-          return;
-        }
-
-        const feedbackSummary = await getCustomerFeedbackSummary().catch(() => null);
-        const featuredRatingCounts = [5, 4, 3, 2, 1].reduce((counts, star) => {
-          counts[star] = Math.max(0, Number(feedbackSummary?.counts?.[star]) || 0);
-          return counts;
-        }, {});
-        const totalFeaturedRatings = [5, 4, 3, 2, 1].reduce((sum, star) => sum + featuredRatingCounts[star], 0);
-        const featuredRatingTotal = [5, 4, 3, 2, 1].reduce((sum, star) => sum + featuredRatingCounts[star] * star, 0);
-
-        setFeaturedRatingStats({
-          average: totalFeaturedRatings ? featuredRatingTotal / totalFeaturedRatings : 0,
-          total: totalFeaturedRatings,
-          counts: featuredRatingCounts,
-        });
-
-        if (!active) return;
-      } catch (error) {
-        if (!active) return;
-        setFeaturedProducts([]);
-        setFeaturedRatingStats({ average: 0, total: 0, counts: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } });
-        setFeaturedProductsError(error.data?.message || error.message || "Unable to load featured products.");
-      } finally {
-        if (active) setFeaturedProductsLoading(false);
-      }
-    };
-
-    fetchFeaturedProducts();
-    const unsubscribeRealtime = subscribeToRealtime(["products", "catalog", "reviews"], () => {
-      if (document.visibilityState === "visible") fetchFeaturedProducts();
-    });
-
-    return () => {
-      active = false;
-      unsubscribeRealtime();
-    };
-  }, [canAccessCustomerRatings, loading, user?.id]);
-
-  useEffect(() => {
     const previousFilters = browseFiltersRef.current;
     const currentFilters = { searchQuery, categoryFilter, productTypeFilter, productsPerPage };
     const filtersChanged = previousFilters && Object.keys(currentFilters).some(
@@ -2029,7 +1968,6 @@ function CustomerDashboard() {
 
         setCartPricingProducts(latestProducts);
         setProducts((current) => current.map(refreshProduct));
-        setFeaturedProducts((current) => current.map(refreshProduct));
         setSelectedProduct(refreshProduct);
         setCartDecisionProduct(refreshProduct);
         setOrderNowProduct(refreshProduct);
@@ -2094,6 +2032,7 @@ function CustomerDashboard() {
         if (!active) return;
         setCustomerPaymentContactPhone(paymentContact?.phone || "");
         const latestOrders = response.orders || [];
+        setOrdersLoadError("");
         hasLoadedCustomerOrdersRef.current = true;
         setOrders(latestOrders);
         setSelectedOrderForModal((current) => {
@@ -2108,8 +2047,9 @@ function CustomerDashboard() {
           const latest = latestOrders.find((order) => String(order._id || order.id || order.tracking || "") === currentId);
           return latest ? { ...current, ...latest } : current;
         });
-      } catch {
+      } catch (error) {
         if (!active) return;
+        setOrdersLoadError(error?.data?.message || error?.message || "Unable to load your orders right now.");
       } finally {
         if (active && showLoading) setOrdersLoading(false);
         requestInFlight = false;
@@ -3230,7 +3170,17 @@ function CustomerDashboard() {
         }
         setOrderRequestMessage(getOrderSubmissionMessage(response, "Order requested"));
         addCreatedOrderToMyOrders(response.order);
-        setOrderSuccessData(response.order);
+        const submittedOrderItems = Array.isArray(response.order?.items) && response.order.items.length
+          ? response.order.items
+          : [item];
+        setOrderSuccessData({
+          ...response.order,
+          items: submittedOrderItems.map((submittedItem) => ({
+            ...submittedItem,
+            image_url: submittedItem.image_url || item.image_url || "",
+            images: submittedItem.images || item.images,
+          })),
+        });
       }
 
       setOrderReviewAgreed(false);
@@ -3411,11 +3361,6 @@ function CustomerDashboard() {
     setShowAboutProduct(false);
   };
 
-  const handleFeaturedProductClick = (product) => {
-    setActiveTab("products");
-    handleViewProduct(product);
-  };
-
   const closeProductModal = () => {
     setSelectedProduct(null);
     setSelectedProductImageIndex(0);
@@ -3577,7 +3522,17 @@ function CustomerDashboard() {
 
     setOrderRequestMessage(getOrderSubmissionMessage(response, "Order requested"));
     addCreatedOrderToMyOrders(response.order);
-    setOrderSuccessData(response.order);
+    const submittedOrderItems = Array.isArray(response.order?.items) && response.order.items.length
+      ? response.order.items
+      : [item];
+    setOrderSuccessData({
+      ...response.order,
+      items: submittedOrderItems.map((submittedItem) => ({
+        ...submittedItem,
+        image_url: submittedItem.image_url || item.image_url || "",
+        images: submittedItem.images || item.images,
+      })),
+    });
     setOrderReviewAgreed(false);
     setShowOrderSuccessModal(true);
   };
@@ -4335,6 +4290,7 @@ function CustomerDashboard() {
       setBatchSuccessItemCount(
         Array.isArray(response.order?.items) ? response.order.items.length : orderItems.length
       );
+      setBatchSuccessItems(orderItems);
       setShowBatchSuccessModal(true);
       setShowBatchOrderModal(false);
       setShowBatchOrderConfirmModal(false);
@@ -4616,7 +4572,7 @@ function CustomerDashboard() {
     if (!item) return PRODUCT_IMAGE_PLACEHOLDER;
     let candidate = null;
     if (item.image_url) candidate = item.image_url;
-    if (!candidate && item.image) candidate = item.image;
+    if (!candidate) candidate = getProductImage(item);
     const productReference = item.product_id || item.product;
     const productId = typeof productReference === "object"
       ? productReference?._id || productReference?.id
@@ -4627,6 +4583,68 @@ function CustomerDashboard() {
     if (!candidate && product) candidate = getProductImage(product);
     return ensureAbsoluteUrl(candidate);
   }
+
+  const renderOrderConfirmationProducts = (items) => {
+    const orderedItems = Array.isArray(items) ? items : [];
+    if (!orderedItems.length) return null;
+    const isSingleItem = orderedItems.length === 1;
+
+    return (
+      <div
+        className={`mt-5 w-full ${isSingleItem ? "" : "max-h-60 overflow-y-auto pr-1"}`}
+        role="list"
+        aria-label="Ordered products"
+      >
+        <div className={isSingleItem ? "space-y-2.5" : "grid grid-cols-2 gap-2.5 sm:grid-cols-3"}>
+          {orderedItems.map((item, index) => {
+            const productName = item.name || item.product_name || item.product_type || "Product";
+            const productId = item.product_id?._id || item.product_id || item._id || productName;
+            return isSingleItem ? (
+              <div
+                key={`${productId}-${index}`}
+                role="listitem"
+                className={`flex items-center gap-4 rounded-2xl border p-3 text-left ${darkMode ? "border-slate-700 bg-slate-800" : "border-slate-200 bg-slate-50"}`}
+              >
+                <img
+                  src={getOrderItemImage(item)}
+                  alt={productName}
+                  onError={handleProductImageError}
+                  className="h-24 w-28 shrink-0 rounded-xl object-cover"
+                />
+                <div className="min-w-0">
+                  <p className={`line-clamp-2 text-sm font-bold leading-5 ${darkMode ? "text-slate-100" : "text-slate-900"}`}>
+                    {productName}
+                  </p>
+                  <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${darkMode ? "bg-slate-700 text-slate-200" : "bg-white text-slate-600 shadow-sm"}`}>
+                    Qty {Math.max(1, Number(item.quantity) || 1)}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div
+                key={`${productId}-${index}`}
+                role="listitem"
+                className={`min-w-0 overflow-hidden rounded-2xl border p-2.5 text-left ${darkMode ? "border-slate-700 bg-slate-800" : "border-slate-200 bg-slate-50"}`}
+              >
+                <img
+                  src={getOrderItemImage(item)}
+                  alt={productName}
+                  onError={handleProductImageError}
+                  className="h-24 w-full rounded-xl object-cover"
+                />
+                <p className={`mt-2 line-clamp-2 min-h-10 text-xs font-bold leading-5 ${darkMode ? "text-slate-100" : "text-slate-900"}`}>
+                  {productName}
+                </p>
+                <span className={`mt-1 inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ${darkMode ? "bg-slate-700 text-slate-200" : "bg-white text-slate-600 shadow-sm"}`}>
+                  Qty {Math.max(1, Number(item.quantity) || 1)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   function formatCurrency(amount) {
     return `₱${Number(amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -4976,16 +4994,9 @@ function CustomerDashboard() {
     return calculateStageProgressPercent(steps);
   };
 
-  const activeOrdersCount = orders.filter((order) => {
-    const status = normalizeOrderStatus(order?.status);
-    return status !== "completed" && status !== "cancelled";
-  }).length;
-  const pendingContractsCount = orders.filter((order) => {
-    const status = normalizeOrderStatus(order?.status);
-    return ["contract sent", "contract accepted"].includes(status);
-  }).length;
+  const activeOrdersCount = orders.filter(isCustomerActiveOrder).length;
+  const pendingOrdersCount = orders.filter(isCustomerPendingOrder).length;
   const completedProjectsCount = orders.filter(isOrderStatusCompleted).length;
-  const cancelledProjectsCount = orders.filter((order) => normalizeOrderStatus(order?.status) === "cancelled").length;
 
   const getOrderIdentifier = (order, fallback = "") => {
     const id = order?._id ?? order?.id ?? order?.tracking ?? fallback;
@@ -5002,6 +5013,7 @@ function CustomerDashboard() {
 
     // Otherwise, apply status filter
     if (orderFilter === "all") return true;
+    if (orderFilter === "pending") return isCustomerPendingOrder(order);
     if (orderFilter === "order") return !["installation", "completed", "cancelled"].includes(status);
     if (orderFilter === "review") return isOrderCompletedAndReviewable(order) && !hasOrderReview(order);
     if (orderFilter === "reviewed") return hasAnyOrderReview(order);
@@ -5024,6 +5036,22 @@ function CustomerDashboard() {
   const recentOrders = [...orders]
     .sort((firstOrder, secondOrder) => getOrderSortTimestamp(secondOrder) - getOrderSortTimestamp(firstOrder))
     .slice(0, 3);
+  const dashboardRecentOrders = [...orders]
+    .sort((firstOrder, secondOrder) => {
+      const firstDate = new Date(firstOrder?.createdAt || firstOrder?.updatedAt || 0).getTime();
+      const secondDate = new Date(secondOrder?.createdAt || secondOrder?.updatedAt || 0).getTime();
+      return (Number.isFinite(secondDate) ? secondDate : 0) - (Number.isFinite(firstDate) ? firstDate : 0);
+    })
+    .slice(0, 5);
+  const dashboardRecentNotifications = [...customerNotificationItems]
+    .sort(sortCustomerNotificationsNewestFirst)
+    .slice(0, 4);
+  const showOrdersFilter = (filter) => {
+    setTrackingNumber("");
+    setOrderFilter(filter);
+    setOrderPage(1);
+    setActiveTab("orders");
+  };
 
   const openOrderDetailsFromNotification = (order, notificationOrId = null) => {
     const orderIdentifier = getOrderIdentifier(order);
@@ -5125,6 +5153,7 @@ function CustomerDashboard() {
   const orderFilterOptions = [
     { value: "all", label: "All Orders" },
     { value: "order", label: "My Orders" },
+    { value: "pending", label: "Pending" },
     { value: "completed", label: "Completed" },
     { value: "review", label: "To Review" },
     { value: "reviewed", label: "Reviewed Product" },
@@ -5135,6 +5164,7 @@ function CustomerDashboard() {
     count: orders.filter((order) => {
       const status = normalizeOrderStatus(order?.status);
       if (option.value === "all") return true;
+      if (option.value === "pending") return isCustomerPendingOrder(order);
       if (option.value === "order") return !["installation", "completed", "cancelled"].includes(status);
       if (option.value === "review") return isOrderCompletedAndReviewable(order) && !hasOrderReview(order);
       if (option.value === "reviewed") return hasAnyOrderReview(order);
@@ -5281,7 +5311,7 @@ function CustomerDashboard() {
       : isPieceEstimator
         ? (!productPieceOptions.length || Number(selectedPieceOption?.price_per_piece) > 0) && Number(productEstimatorResult?.estimated_price) > 0
       : productAreaOptions.length > 0
-        ? Boolean(selectedAreaOption && (Number(selectedAreaOption.price_per_sqft) > 0 || Number(selectedProduct.price_per_sqft) > 0 || Number(selectedProduct.estimated_price_override) > 0)) && Number(productEstimatorResult?.estimated_price) > 0
+        ? (!productEstimatorForm.area_option || Boolean(selectedAreaOption && (Number(selectedAreaOption.price_per_sqft) > 0 || Number(selectedProduct.price_per_sqft) > 0 || Number(selectedProduct.estimated_price_override) > 0))) && Number(productEstimatorResult?.estimated_price) > 0
       : productEstimatorWidth > 0 && productEstimatorHeight > 0 && Number(productEstimatorResult?.estimated_price) > 0);
   const productEstimatorBladeCountError = productEstimatorState?.bladeCountError || "";
   const productEstimatorInputsInvalid = Boolean(productEstimatorDimensionError || productEstimatorQuantityError || productEstimatorBladeCountError);
@@ -5448,7 +5478,6 @@ function CustomerDashboard() {
   const isBatchOrderAddressValid = Boolean(batchOrderAddress) && isValidStreetAddress(batchOrderAddress);
 
   const cartQuantity = cartItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-  const showFeaturedSection = activeTab === "home";
   const sectionTextClass = darkMode ? "text-slate-100" : "text-slate-900";
   const sectionMutedTextClass = darkMode ? "text-slate-300" : "text-slate-600";
   const panelClass = darkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200";
@@ -6068,216 +6097,188 @@ function CustomerDashboard() {
         })}
       </nav>
 
-      {activeTab === "home" && (
-        <>
-          <section className={`customer-home-hero relative overflow-hidden ${darkMode ? "bg-[#1a273a] text-white" : "bg-[#45151f]/75 text-white"}`}>
-            <div className={`customer-home-hero-glow absolute inset-0 ${darkMode ? "" : "bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.16),transparent_26%),radial-gradient(circle_at_bottom_right,_rgba(239,68,68,0.18),transparent_28%),linear-gradient(135deg,#170d11_0%,#4b1017_38%,#140d13_100%)]"}`} />
-            <div className="absolute -left-16 top-10 h-72 w-72 rounded-full border border-white/10" />
-            <div className="absolute -right-10 bottom-6 h-80 w-80 rounded-full border border-white/10" />
-            <div className="absolute left-1/2 top-1/2 h-[460px] w-[460px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10" />
-
-            <div className="relative mx-auto max-w-7xl px-6 py-14 sm:py-20">
-              <div className="mx-auto max-w-6xl rounded-[32px] border border-white/20 bg-white/[0.08] px-5 py-8 shadow-[0_25px_80px_rgba(0,0,0,0.28)] backdrop-blur-2xl sm:px-8 sm:py-12 lg:px-10">
-                <div className="mx-auto max-w-4xl text-center">
-                  <p className="text-[11px] font-black uppercase tracking-[0.42em] text-red-100/90 sm:text-xs">ACGC Services</p>
-                  <h2 className="mt-5 text-4xl font-black leading-[0.96] tracking-[-0.06em] text-white sm:text-6xl lg:text-[5rem]">
-                    Custom Glass &<br />
-                    <span className="text-red-100/95">Aluminum Solutions</span>
-                  </h2>
-                  <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-red-50/90 sm:text-lg">
-                    Professional fabrication and installation of glass windows, doors, partitions, and aluminum works designed for timeless architecture and practical performance.
-                  </p>
-                  <div className="mt-9 flex flex-wrap justify-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("products")}
-                      className="rounded-full border border-white/50 bg-white/20 px-6 py-3.5 text-sm font-black uppercase tracking-[0.08em] text-white shadow-[0_18px_40px_rgba(15,23,42,0.22)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white/30"
-                    >
-                      Browse Products
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("orders")}
-                      className="rounded-full border border-white/30 bg-white/5 px-6 py-3.5 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:bg-white/10"
-                    >
-                      View My Orders
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mt-10 grid gap-4 sm:grid-cols-3">
-                  {[
-                    { icon: ShieldCheck, title: "Quality Guaranteed", text: "Premium materials and careful workmanship." },
-                    { icon: Clock3, title: "Fast Turnaround", text: "Efficient production for your project timeline." },
-                    { icon: Wrench, title: "Expert Installation", text: "Professional site inspection and installation." },
-                  ].map(({ icon: Icon, title, text }) => (
-                    <div key={title} className="rounded-[24px] border border-white/20 bg-white/[0.08] p-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.16)] backdrop-blur-2xl transition hover:-translate-y-1 hover:bg-white/[0.14] sm:p-5">
-                      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-white/25 bg-white/[0.12] text-red-100 backdrop-blur-xl">
-                        <Icon className="h-7 w-7" strokeWidth={1.8} />
-                      </div>
-                      <h3 className="mt-4 text-xl font-black text-white">{title}</h3>
-                      <p className="mt-2 text-sm leading-6 text-red-50/80">{text}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-        </>
-      )}
-
-      {showFeaturedSection && (
-        <div className={`relative mx-auto max-w-7xl overflow-hidden px-6 py-8 ${darkMode ? "bg-[radial-gradient(ellipse_at_top,_rgba(148,163,184,0.12),transparent_60%)]" : "bg-[radial-gradient(ellipse_at_top,_rgba(255,255,255,0.6),transparent_65%)]"}`}>
-          <div className={`rounded-[30px] border p-5 shadow-[0_22px_50px_rgba(15,23,42,0.12)] backdrop-blur-2xl ${darkMode ? "border-white/15 bg-white/[0.06]" : "border-white/55 bg-white/[0.3]"}`}>
-            <div className="mb-6 flex items-end justify-between gap-4">
-              <div className="text-left">
-                <h2 className={`mt-3 text-3xl font-black leading-tight sm:text-5xl sm:leading-none ${darkMode ? "text-white" : "text-slate-900"}`}>
-                  Featured <span className="text-[#dc2626]">Products</span>
-                </h2>
-              </div>
-            </div>
-
-            <p className={`mb-6 max-w-3xl text-sm leading-6 sm:text-lg ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
-              Discover premium aluminum and glass solutions crafted for modern residential and commercial projects.
-            </p>
-
-            {featuredProductsError ? (
-              <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                {featuredProductsError}
-              </div>
-            ) : featuredProductsLoading ? (
-              <div className="grid gap-4 md:grid-cols-3">
-                {[...Array(3)].map((_, index) => (
-                  <div key={index} className="h-72 animate-pulse rounded-[22px] bg-slate-200" />
-                ))}
-              </div>
-            ) : featuredProducts.length === 0 ? (
-              <div className={`rounded-2xl border border-dashed p-8 text-center ${darkMode ? "border-slate-600 bg-slate-800 text-slate-300" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
-                No featured products are available right now.
-              </div>
-            ) : (
-              <div className="grid gap-5 md:grid-cols-3">
-                {featuredProducts.map((product, index) => {
-                  const reviewStats = productReviewStats[product._id || product.id] || { averageRating: 0, ratingsCount: 0 };
-                  const averageRating = Number(reviewStats.averageRating) || 0;
-                  const reviewsCount = Number(reviewStats.ratingsCount) || 0;
-
-                  return (
-                    <article
-                      key={product._id || product.name}
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`View ${product.name || product.product_name || "featured product"} details`}
-                      onClick={() => handleFeaturedProductClick(product)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          handleFeaturedProductClick(product);
-                        }
-                      }}
-                      className={`group flex h-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-[26px] border shadow-[0_18px_38px_rgba(15,23,42,0.08)] transition duration-300 hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 ${
-                        darkMode ? "border-white/15 bg-white/[0.045] backdrop-blur-xl" : "border-white/65 bg-white/[0.2] backdrop-blur-xl"
-                      }`}
-                    >
-                      <div className={`relative aspect-[4/3] w-full overflow-hidden ${darkMode ? "bg-slate-900" : "bg-slate-100"}`}>
-                        <div data-product-image-skeleton className="absolute inset-0 animate-pulse bg-slate-200 motion-reduce:animate-none" />
-                        <img
-                          src={getProductImage(product, 720) || PRODUCT_IMAGE_PLACEHOLDER}
-                          srcSet={getProductImageSrcSet(getProductImage(product, 720))}
-                          sizes="(max-width: 768px) 100vw, 33vw"
-                          alt={product.name}
-                          width="720"
-                          height="540"
-                          loading="eager"
-                          fetchPriority={index === 0 ? "high" : "auto"}
-                          decoding="async"
-                          onLoad={handleProductImageLoad}
-                          onError={handleProductImageError}
-                          className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-900/10 to-transparent" />
-                        <h3 className="absolute inset-x-4 bottom-4 line-clamp-2 text-lg font-black leading-tight text-white drop-shadow-[0_2px_5px_rgba(0,0,0,0.9)] sm:text-xl">
-                          {product.name || product.product_name || "Product"}
-                        </h3>
-                        <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full border border-amber-200/80 bg-amber-100/95 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-amber-950 shadow-lg backdrop-blur-sm">
-                          <Star size={12} fill="currentColor" aria-hidden="true" />
-                          Featured
-                        </span>
-                      </div>
-
-                      <div className="flex flex-1 flex-col gap-4 p-4 sm:p-5">
-                        <p className={`line-clamp-3 min-h-[4.5rem] text-sm leading-6 ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
-                          {product.description || "Premium aluminum and glass solution for modern spaces."}
-                        </p>
-                        {canAccessCustomerRatings && (
-                          <div className={`flex items-center gap-2 ${darkMode ? "text-amber-300" : "text-amber-600"}`}>
-                            <div className="flex shrink-0 items-center gap-0.5">
-                              {renderRatingStars(averageRating, 14, darkMode)}
-                            </div>
-                            <span className={`text-xs font-semibold ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
-                              {averageRating > 0 ? `${averageRating.toFixed(1)} (${reviewsCount})` : "New"}
-                            </span>
-                          </div>
-                        )}
-
-                        <div className={`mt-auto border-t pt-3 ${darkMode ? "border-slate-700" : "border-slate-200"}`}>
-                          <p className={`text-[10px] uppercase tracking-[0.14em] ${darkMode ? "text-slate-400" : "text-slate-500"}`}>Starting from</p>
-                          <p className={`mt-1 text-2xl font-black ${darkMode ? "text-red-300" : "text-red-700"}`}>{getProductPrice(product)}</p>
-                        </div>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {canShowRatings && (
-            <section className={`mt-8 rounded-[30px] border px-6 py-8 shadow-[0_20px_48px_rgba(15,23,42,0.06)] backdrop-blur-2xl sm:px-10 ${darkMode ? "border-white/15 bg-white/[0.06] text-slate-100" : "border-white/60 bg-white/[0.32] text-slate-900"}`}>
-              <h2 className={`text-center text-3xl font-black ${darkMode ? "text-white" : "text-slate-900"}`}>Customer Ratings</h2>
-              <div className="mt-8 grid gap-8 md:grid-cols-[220px_1fr] md:items-center">
-                <div className="text-center">
-                  <p className={`text-6xl font-black leading-none ${darkMode ? "text-white" : "text-slate-950"}`}>
-                    {featuredRatingStats.average.toFixed(1)}
-                  </p>
-                  <div className="mt-3 flex justify-center gap-1 text-amber-500">
-                    {renderRatingStars(featuredRatingStats.average, 22, darkMode)}
-                  </div>
-                  <p className={`mt-3 text-sm font-semibold ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
-                    Average Rating ({featuredRatingStats.total} review{featuredRatingStats.total === 1 ? "" : "s"})
-                  </p>
-                </div>
-
-                <div className="space-y-3">
-                  {[5, 4, 3, 2, 1].map((star) => {
-                    const count = featuredRatingStats.counts[star] || 0;
-                    const percentage = featuredRatingStats.total
-                      ? Math.round((count / featuredRatingStats.total) * 100)
-                      : 0;
-                    return (
-                      <div key={star} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 text-sm">
-                        <span className={`font-semibold ${darkMode ? "text-slate-300" : "text-slate-600"}`}>{star}</span>
-                        <div className={`h-3 overflow-hidden rounded-full ${darkMode ? "bg-white/10" : "bg-white/55"}`}>
-                          <div
-                            className="h-full rounded-full bg-amber-400 transition-all"
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                        <span className={`w-12 text-right font-semibold ${darkMode ? "text-slate-300" : "text-slate-500"}`}>{percentage}%</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </section>
-          )}
-        </div>
-      )}
-
-      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col p-3 sm:p-4 md:p-6">
+      <div className={`mx-auto flex w-full flex-1 flex-col p-3 sm:p-4 md:p-6 ${activeTab === "home" ? "customer-dashboard-home-container" : activeTab === "about" ? "max-w-[1560px]" : "max-w-7xl"}`}>
         {onlineOrderCooldownActive && activeTab !== "cart" && (
           <div role="alert" className={`mb-4 rounded-2xl border px-4 py-3 text-sm font-semibold ${darkMode ? "border-amber-700 bg-amber-950/40 text-amber-100" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
             {renderAdminContactMessage(onlineOrderCooldownMessage)}
+          </div>
+        )}
+        {activeTab === "home" && (
+          <div className="customer-dashboard-home-grid">
+            <div className="customer-dashboard-home-main">
+            <section className={`customer-dashboard-welcome-hero flex flex-col gap-4 rounded-2xl border p-5 shadow-sm sm:flex-row sm:items-end sm:justify-between sm:p-7 ${panelClass}`}>
+              <div>
+                <p className={`customer-dashboard-eyebrow text-xs font-bold uppercase tracking-[0.16em] ${darkMode ? "text-red-300" : "text-red-700"}`}>Customer Dashboard</p>
+                <h1 className={`customer-dashboard-welcome-title mt-2 text-3xl font-black tracking-tight sm:text-4xl ${sectionTextClass}`}>
+                  Welcome back, {user?.first_name || profileDisplayName.split(" ")[0] || "Customer"}!
+                </h1>
+                <p className={`customer-dashboard-welcome-subtitle mt-2 text-sm sm:text-base ${sectionMutedTextClass}`}>Here’s an overview of your orders and project activities.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab("products")}
+                className="customer-dashboard-products-button inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-red-700 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+              >
+                <ShoppingCart size={17} aria-hidden="true" />
+                Browse Products
+              </button>
+            </section>
+
+            <section aria-label="Order summary" className="customer-dashboard-order-counts grid gap-4 md:grid-cols-3">
+              {[
+                { label: "Active Orders", value: activeOrdersCount, description: "Projects in progress", filter: "order", icon: Package, accent: "#2563eb" },
+                { label: "Pending Orders", value: pendingOrdersCount, description: "Waiting for review or action", filter: "pending", icon: Clock3, accent: "#d97706" },
+                { label: "Completed Orders", value: completedProjectsCount, description: "Successfully completed projects", filter: "completed", icon: CheckCircle, accent: "#16875a" },
+              ].map(({ label, value, description, filter, icon: Icon, accent }) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => showOrdersFilter(filter)}
+                  aria-label={`${label}: ${ordersLoading ? "loading" : ordersLoadError ? "unavailable" : value}. View ${label.toLowerCase()}.`}
+                  style={{ "--summary-accent": accent }}
+                  className={`customer-dashboard-count-card admin-dashboard-summary-card ${darkMode ? "is-dark" : ""}`}
+                >
+                  <span className="admin-dashboard-summary-top">
+                    <span>
+                      <span className="admin-dashboard-summary-label">{label}</span>
+                      <span className={`mt-1 block text-xs ${darkMode ? "text-slate-400" : "text-slate-500"}`}>{description}</span>
+                    </span>
+                    <span className="admin-dashboard-summary-icon"><Icon size={21} strokeWidth={2} aria-hidden="true" /></span>
+                  </span>
+                  <span className="admin-dashboard-summary-count">{ordersLoading || ordersLoadError ? "—" : value}</span>
+                  <span className="admin-dashboard-summary-link">View orders <ArrowRight size={15} strokeWidth={2.2} aria-hidden="true" /></span>
+                </button>
+              ))}
+            </section>
+
+              <section className={`customer-dashboard-orders-card min-w-0 overflow-hidden rounded-2xl border shadow-sm ${panelClass}`} aria-labelledby="customer-dashboard-recent-orders-title">
+                <div className={`customer-dashboard-orders-header flex flex-wrap items-center justify-between gap-3 border-b px-4 py-4 sm:px-5 ${darkMode ? "border-slate-700" : "border-slate-200"}`}>
+                  <div>
+                    <h2 id="customer-dashboard-recent-orders-title" className={`customer-dashboard-section-title text-lg font-bold ${sectionTextClass}`}>Recent Orders</h2>
+                    <p className={`customer-dashboard-section-subtitle mt-0.5 text-sm ${sectionMutedTextClass}`}>Your five most recently submitted orders</p>
+                  </div>
+                  <button type="button" onClick={() => showOrdersFilter("all")} className={`customer-dashboard-view-all inline-flex items-center gap-1 text-sm font-semibold ${darkMode ? "text-red-300 hover:text-white" : "text-red-700 hover:text-red-900"}`}>
+                    View all <ArrowRight size={15} aria-hidden="true" />
+                  </button>
+                </div>
+
+                {ordersLoadError ? (
+                  <div role="alert" className={`m-4 rounded-xl border p-4 text-sm ${darkMode ? "border-red-900 bg-red-950/40 text-red-200" : "border-red-200 bg-red-50 text-red-700"}`}>{ordersLoadError}</div>
+                ) : ordersLoading ? (
+                  <div className="space-y-3 p-4" aria-label="Loading recent orders">
+                    {[...Array(3)].map((_, index) => <div key={index} className={`h-14 animate-pulse rounded-xl ${darkMode ? "bg-slate-700" : "bg-slate-100"}`} />)}
+                  </div>
+                ) : dashboardRecentOrders.length === 0 ? (
+                  <div className={`m-4 rounded-xl border border-dashed px-5 py-9 text-center ${darkMode ? "border-slate-700 bg-slate-900/40" : "border-slate-300 bg-slate-50"}`}>
+                    <ClipboardList className={`mx-auto size-8 ${darkMode ? "text-slate-500" : "text-slate-400"}`} aria-hidden="true" />
+                    <p className={`mt-3 font-semibold ${sectionTextClass}`}>No orders yet</p>
+                    <p className={`mt-1 text-sm ${sectionMutedTextClass}`}>Your orders will appear here after you submit a request.</p>
+                  </div>
+                ) : (
+                  <div className="customer-dashboard-orders-scroll overflow-x-auto">
+                    <table className="customer-dashboard-orders-table w-full min-w-[720px] text-left text-sm">
+                      <thead className={darkMode ? "bg-slate-900/50 text-slate-300" : "bg-slate-50 text-slate-600"}>
+                        <tr>
+                          {["No.", "Order / Project", "Order Date", "Total Amount", "Payment", "Order Status", "Action"].map((heading) => <th key={heading} scope="col" className="px-4 py-3 text-xs font-bold uppercase tracking-wide">{heading}</th>)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dashboardRecentOrders.map((order, index) => {
+                          const items = Array.isArray(order.items) ? order.items : [];
+                          const name = items.length > 1 ? "Batch Order" : items[0]?.name || items[0]?.product_name || "Project";
+                          const paymentSummary = getPaymentSummary(order);
+                          const paymentTone = ["paid", "downpayment"].includes(paymentSummary.status?.key) ? "is-paid" : "is-pending";
+                          const normalizedStatus = normalizeOrderStatusKey(order.status);
+                          const statusTone = normalizedStatus === "processing"
+                            ? "is-processing"
+                            : normalizedStatus === "site_inspection"
+                              ? "is-site-inspection"
+                              : normalizedStatus === "completed"
+                                ? "is-completed"
+                                : ["cancelled", "contract_declined", "declined", "rejected"].includes(normalizedStatus)
+                                  ? "is-error"
+                                  : "is-progress";
+                          const orderId = getOrderIdentifier(order, `dashboard-order-${index}`);
+                          return (
+                            <tr key={orderId} className={darkMode ? "text-slate-200" : "text-slate-700"}>
+                              <td className="customer-dashboard-row-number px-4 py-3.5 tabular-nums">{index + 1}</td>
+                              <td className={`customer-dashboard-project-name px-4 py-3.5 font-semibold ${sectionTextClass}`} title={name}>{name}</td>
+                              <td className="px-4 py-3.5">{formatDateToMMMDDYYYY(order.createdAt || order.updatedAt) || "—"}</td>
+                              <td className="customer-dashboard-total-amount px-4 py-3.5 font-semibold">{formatCurrency(getOrderTotalValue(order))}</td>
+                              <td className="px-4 py-3.5"><span className="customer-dashboard-payment-status"><span className={`customer-dashboard-payment-dot ${paymentTone}`} aria-hidden="true" />{paymentSummary.status?.label || "Unpaid"}</span></td>
+                              <td className="px-4 py-3.5"><span className={`customer-dashboard-order-status ${statusTone} inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getOrderStatusClasses(order.status)}`}>{getOrderStatusLabel(order.status)}</span></td>
+                              <td className="px-4 py-3.5">
+                                <button type="button" onClick={() => setSelectedOrderForModal(order)} className={`customer-dashboard-order-action inline-flex items-center gap-1 whitespace-nowrap font-semibold underline-offset-2 hover:underline ${darkMode ? "text-red-300" : "text-red-700"}`} aria-label={`View details for ${name}`}>View details <ArrowRight size={14} aria-hidden="true" /></button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+            </div>
+
+              <section className={`customer-dashboard-updates-card min-w-0 overflow-hidden rounded-2xl border shadow-sm ${panelClass}`} aria-labelledby="customer-dashboard-recent-updates-title">
+                <div className={`customer-dashboard-updates-header flex items-center justify-between gap-3 border-b px-4 py-4 sm:px-5 ${darkMode ? "border-slate-700" : "border-slate-200"}`}>
+                  <div>
+                    <h2 id="customer-dashboard-recent-updates-title" className={`customer-dashboard-section-title text-lg font-bold ${sectionTextClass}`}>Recent Updates</h2>
+                    <p className={`customer-dashboard-section-subtitle mt-0.5 text-sm ${sectionMutedTextClass}`}>Latest order and project activity</p>
+                  </div>
+                  <button type="button" onClick={() => setActiveTab("notifications")} className={`customer-dashboard-view-all inline-flex shrink-0 items-center gap-1 text-sm font-semibold ${darkMode ? "text-red-300 hover:text-white" : "text-red-700 hover:text-red-900"}`}>
+                    View all <ArrowRight size={15} aria-hidden="true" />
+                  </button>
+                </div>
+
+                {ordersLoading && dashboardRecentNotifications.length === 0 ? (
+                  <div className="customer-dashboard-updates-feed-state space-y-3 p-4" aria-label="Loading recent updates">
+                    {[...Array(3)].map((_, index) => <div key={index} className={`h-16 animate-pulse rounded-xl ${darkMode ? "bg-slate-700" : "bg-slate-100"}`} />)}
+                  </div>
+                ) : ordersLoadError && dashboardRecentNotifications.length === 0 ? (
+                  <div role="alert" className={`customer-dashboard-updates-feed-state m-4 rounded-xl border p-4 text-sm ${darkMode ? "border-red-900 bg-red-950/40 text-red-200" : "border-red-200 bg-red-50 text-red-700"}`}>{ordersLoadError}</div>
+                ) : dashboardRecentNotifications.length === 0 ? (
+                  <div className={`customer-dashboard-updates-feed-state m-4 rounded-xl border border-dashed px-5 py-9 text-center ${darkMode ? "border-slate-700 bg-slate-900/40" : "border-slate-300 bg-slate-50"}`}>
+                    <Bell className={`mx-auto size-8 ${darkMode ? "text-slate-500" : "text-slate-400"}`} aria-hidden="true" />
+                    <p className={`mt-3 font-semibold ${sectionTextClass}`}>No updates yet</p>
+                    <p className={`mt-1 text-sm ${sectionMutedTextClass}`}>Updates about your orders and projects will appear here.</p>
+                  </div>
+                ) : (
+                  <ul className={`customer-dashboard-updates-feed divide-y ${darkMode ? "divide-slate-700" : "divide-slate-100"}`}>
+                    {dashboardRecentNotifications.map((notification) => {
+                      const updateTitles = {
+                        contract: "Contract available",
+                        transaction_approved: "Payment approved",
+                        payment_confirmed: "Payment verified",
+                        admin_payment_recorded: "Payment recorded",
+                        payment_rejected: "Payment needs attention",
+                        installation_up_next: "Installation scheduled",
+                        installation_completed: "Installation completed",
+                        product_ready_for_review: "Product ready for review",
+                        project_delay: notification.title || "Project progress update",
+                        delay: notification.title || "Project progress update",
+                        repair_request: notification.title || "Repair request update",
+                      };
+                      const title = notification.title || updateTitles[notification.notificationType] || "Order status updated";
+                      const message = notification.message || getCustomerOrderNotificationMessage(notification);
+                      const isRead = readNotificationIds.has(notification.notificationId);
+                      return (
+                        <li key={notification.notificationId}>
+                          <button type="button" onClick={() => openOrderDetailsFromNotification(notification, notification)} className={`customer-dashboard-update-row flex w-full gap-3 px-5 py-4 text-left transition-colors ${darkMode ? "hover:bg-slate-700/50" : "hover:bg-slate-50"}`}>
+                            <span className={`customer-dashboard-update-icon mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full ${isRead ? darkMode ? "bg-slate-700 text-slate-300" : "bg-slate-100 text-slate-500" : darkMode ? "bg-red-950 text-red-300" : "bg-red-50 text-red-700"}`}><Bell size={17} aria-hidden="true" /></span>
+                            <span className="min-w-0 flex-1">
+                              <span className={`customer-dashboard-update-title block text-sm font-bold ${sectionTextClass}`}>{title}</span>
+                              <span className={`customer-dashboard-update-message mt-1 block text-xs leading-5 ${sectionMutedTextClass}`}>{message}</span>
+                              <span className={`customer-dashboard-update-time mt-1.5 block text-[11px] ${darkMode ? "text-slate-500" : "text-slate-400"}`}>{formatTimeAgo(notification.notificationDate || notification.updatedAt || notification.createdAt)}</span>
+                            </span>
+                            <ArrowUpRight size={15} className={`mt-1 shrink-0 ${darkMode ? "text-slate-500" : "text-slate-400"}`} aria-hidden="true" />
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </section>
           </div>
         )}
         {activeTab === "products" && (
@@ -8211,7 +8212,7 @@ function CustomerDashboard() {
 
             {showBatchSuccessModal && (
               <div className="customer-modal-overlay fixed inset-0 z-[70] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
-                <div className={`w-full max-w-md rounded-[26px] border p-6 shadow-[0_24px_80px_rgba(15,23,42,0.18)] ${darkMode ? "border-slate-700 bg-slate-900" : "border-transparent bg-white"}`}>
+                <div className={`max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-[26px] border p-6 shadow-[0_24px_80px_rgba(15,23,42,0.18)] ${darkMode ? "border-slate-700 bg-slate-900" : "border-transparent bg-white"}`}>
                   <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full border-2 ${darkMode ? "border-green-800 bg-green-950/50" : "border-green-200 bg-green-50"}`}>
                     <CheckCircle className={`h-8 w-8 ${darkMode ? "text-green-400" : "text-green-700"}`} />
                   </div>
@@ -8219,6 +8220,8 @@ function CustomerDashboard() {
                   <h3 className={`mt-5 text-center text-2xl font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>
                     {batchSuccessItemCount === 1 ? "Order Request Submitted!" : "Batch Order Requests Submitted!"}
                   </h3>
+
+                  {renderOrderConfirmationProducts(batchSuccessItems)}
 
                   <p className={`mt-4 text-center text-sm leading-6 ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
                     Thank you! Your architectural order requests have been received. Our team will contact you shortly to schedule your site inspection and finalize quotation.
@@ -8234,6 +8237,7 @@ function CustomerDashboard() {
                       type="button"
                       onClick={() => {
                         setShowBatchSuccessModal(false);
+                        setBatchSuccessItems([]);
                         setActiveTab("orders");
                       }}
                       className="flex-1 rounded-xl border border-red-600 bg-red-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-800"
@@ -8245,6 +8249,7 @@ function CustomerDashboard() {
                       data-close-modal
                       onClick={() => {
                         setShowBatchSuccessModal(false);
+                        setBatchSuccessItems([]);
                         setActiveTab("products");
                       }}
                       className={`flex-1 rounded-xl border px-4 py-3 text-sm font-semibold transition ${darkMode ? "border-red-500 bg-slate-900 text-red-300 hover:bg-red-950/50" : "border-red-600 bg-white text-red-700 hover:bg-red-50"}`}
@@ -8421,12 +8426,14 @@ function CustomerDashboard() {
 
             {showOrderSuccessModal && orderSuccessData && (
               <div className="customer-modal-overlay fixed inset-0 z-[70] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
-                <div className={`w-full max-w-md rounded-[26px] border p-6 shadow-[0_24px_80px_rgba(15,23,42,0.18)] ${darkMode ? "border-slate-700 bg-slate-900" : "border-transparent bg-white"}`}>
+                <div className={`max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-[26px] border p-6 shadow-[0_24px_80px_rgba(15,23,42,0.18)] ${darkMode ? "border-slate-700 bg-slate-900" : "border-transparent bg-white"}`}>
                   <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full border-2 ${darkMode ? "border-emerald-700 bg-emerald-950/40" : "border-emerald-200 bg-emerald-50"}`}>
                     <CheckCircle className={`h-8 w-8 ${darkMode ? "text-emerald-400" : "text-emerald-600"}`} />
                   </div>
 
                   <h3 className={`mt-5 text-center text-2xl font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>Order Request Submitted!</h3>
+
+                  {renderOrderConfirmationProducts(orderSuccessData.items)}
 
                   <p className={`mt-4 text-center text-sm leading-6 ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
                     Thank you! Your architectural order requests have been received. Our team will contact you shortly to schedule your site inspection and finalize quotation.

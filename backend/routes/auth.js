@@ -49,6 +49,7 @@ import { runSiteInspectionReminderCheck } from "../services/siteInspectionRemind
 import { runPaymentReminderCheck } from "../services/paymentReminders.js";
 import { isPasswordPolicySatisfied, PASSWORD_POLICY_MESSAGE } from "../services/passwordPolicy.js";
 import { STAFF_TYPES, createDefaultStaffAccess, normalizeStaffAccess } from "../../shared/staffPermissions.js";
+import { CURRENT_LEGAL_DOCUMENT_VERSIONS } from "../../shared/legalDocuments.js";
 
 const backupImportUpload = multer({
   ...(process.env.VERCEL === "1" ? { storage: multer.memoryStorage() } : { dest: "backups/incoming" }),
@@ -1264,7 +1265,24 @@ router.post("/register", async (req, res) => {
       province,
       zip_code,
       role,
+      privacy_policy_acknowledged,
+      privacy_policy_version,
+      terms_and_conditions_accepted,
+      terms_and_conditions_version,
     } = req.body;
+
+    if (privacy_policy_acknowledged !== true) {
+      return res.status(400).json({ success: false, message: "Please acknowledge the Privacy Policy before registering." });
+    }
+    if (privacy_policy_version !== CURRENT_LEGAL_DOCUMENT_VERSIONS.privacyPolicy) {
+      return res.status(409).json({ success: false, message: "The Privacy Policy has been updated. Review the current notice before registering." });
+    }
+    if (terms_and_conditions_accepted !== true) {
+      return res.status(400).json({ success: false, message: "Please agree to the Terms and Conditions before registering." });
+    }
+    if (terms_and_conditions_version !== CURRENT_LEGAL_DOCUMENT_VERSIONS.termsAndConditions) {
+      return res.status(409).json({ success: false, message: "The Terms and Conditions have been updated. Review the current terms before registering." });
+    }
 
     if (!email || !username || !password || !first_name || !last_name) {
       return res.status(400).json({
@@ -1341,6 +1359,17 @@ router.post("/register", async (req, res) => {
       email_verification_token: hashVerificationToken(verificationToken),
       email_verification_expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
+    const legalDocumentsAcceptedAt = new Date();
+    user.privacy_policy_acknowledgments = [{
+      account_id: user._id,
+      document_version: privacy_policy_version,
+      acknowledged_at: legalDocumentsAcceptedAt,
+    }];
+    user.terms_and_conditions_acceptances = [{
+      account_id: user._id,
+      document_version: terms_and_conditions_version,
+      accepted_at: legalDocumentsAcceptedAt,
+    }];
 
     await user.save();
 

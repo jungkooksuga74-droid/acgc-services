@@ -7,6 +7,7 @@ const LandingPage = lazy(() => import("./pages/LandingPage/LandingPage"));
 const Login = lazy(() => import("./pages/Login/Login"));
 const Signup = lazy(() => import("./pages/Signup/Signup"));
 const VerifyEmail = lazy(() => import("./pages/VerifyEmail/VerifyEmail"));
+const LegalDocumentPage = lazy(() => import("./pages/LegalDocument/LegalDocumentPage"));
 const Dashboard = lazy(() => import("./pages/Dashboard/Dashboard"));
 const TrackOrder = lazy(() => import("./pages/TrackOrder/TrackOrder"));
 const SiteInspection = lazy(() => import("./pages/SiteInspection/SiteInspection"));
@@ -186,6 +187,8 @@ function AppRoutes() {
     "/",
     "/login",
     "/signup",
+    "/privacy-policy",
+    "/terms-and-conditions",
     "/verify-email",
     "/forgot-password",
     "/reset-password",
@@ -364,6 +367,8 @@ function AppRoutes() {
           <Route path="/signup" element={null} />
           <Route path="/forgot-password" element={null} />
           <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/privacy-policy" element={<LegalDocumentPage documentType="privacyPolicy" />} />
+          <Route path="/terms-and-conditions" element={<LegalDocumentPage documentType="termsAndConditions" />} />
           <Route path="/admin-recovery" element={<AdminRecovery />} />
           <Route path="/track-order" element={<TrackOrder />} />
           <Route element={<AdminLayout

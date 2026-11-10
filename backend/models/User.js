@@ -101,6 +101,22 @@ const UserSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    privacy_policy_acknowledgments: {
+      type: [{
+        account_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+        document_version: { type: String, required: true, trim: true },
+        acknowledged_at: { type: Date, required: true },
+      }],
+      default: [],
+    },
+    terms_and_conditions_acceptances: {
+      type: [{
+        account_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+        document_version: { type: String, required: true, trim: true },
+        accepted_at: { type: Date, required: true },
+      }],
+      default: [],
+    },
     customer_cancellation_count: {
       type: Number,
       min: 0,

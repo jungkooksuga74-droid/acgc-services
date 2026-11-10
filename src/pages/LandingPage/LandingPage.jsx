@@ -2254,7 +2254,7 @@ function LandingPage() {
 {/* ABOUT SECTION */}
 
 {active === "about" && (
-<section id="about" className="mx-auto max-w-7xl scroll-mt-24 px-6 py-28">
+<section id="about" className="about-business-page scroll-mt-24">
   <AboutBusinessContent />
 </section>
 )}

@@ -228,7 +228,7 @@ export const getProductEstimatorState = (product, form = {}) => {
       : isPieceEstimator
         ? (!pieceOptions.length || Boolean(selectedPieceOption && Number(selectedPieceOption.price_per_piece) > 0)) && Number(result.estimated_price) > 0
       : isAreaEstimator
-        ? (!areaOptions.length || Boolean(selectedAreaOption && (Number(selectedAreaOption.price_per_sqft) > 0 || Number(product.price_per_sqft) > 0 || Number(product.estimated_price_override) > 0))) && Number(result.estimated_price) > 0
+        ? (!areaOptions.length || !form.area_option || Boolean(selectedAreaOption && (Number(selectedAreaOption.price_per_sqft) > 0 || Number(product.price_per_sqft) > 0 || Number(product.estimated_price_override) > 0))) && Number(result.estimated_price) > 0
       : width > 0 && height > 0 && Number(result.estimated_price) > 0);
   return {
     isBladeEstimator,
@@ -379,7 +379,7 @@ function ProductPriceEstimator({ product, form, onFormChange, darkMode = false, 
 
       {isAreaEstimator && areaOptions.length > 0 && (
         <label className={`block ${useAreaModalLayout ? "mx-[18px] min-[760px]:col-start-1" : "mt-4"}`}>
-          <span className={labelClass}>Variant</span>
+          <span className={labelClass}>Variant{Number(product.price_per_sqft) > 0 || Number(product.estimated_price_override) > 0 ? " (optional)" : ""}</span>
           <CustomerDropdown ariaLabel="Variant option" darkMode={darkMode} value={form.area_option || selectedAreaOption?.name || ""} onChange={(event) => updateForm({ area_option: event.target.value })} className={fieldClass}>
             <option value="">Choose an option</option>
             {areaOptions.map((option) => <option key={option.name} value={option.name}>{option.name} - {formatCurrency(Number(option.price_per_sqft) || 0)}</option>)}

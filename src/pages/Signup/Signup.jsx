@@ -19,62 +19,9 @@ import {
   MapPin,
   Phone,
   UserRound,
-  X,
 } from "lucide-react";
-
-const policySections = [
-  {
-    title: "Terms and Conditions",
-    sections: [
-      { title: "1. Acceptance of Terms", text: "By creating an account and using this platform, you agree to comply with these Terms and Conditions and all applicable laws and regulations." },
-      { title: "2. Eligibility", text: "Users must be at least 18 years old or meet the minimum legal age required in their jurisdiction to register an account." },
-      { title: "3. Account Registration", text: "You agree to provide accurate, complete, and up-to-date information during registration. Providing false information may result in account suspension or termination." },
-      { title: "4. Account Responsibility", text: "You are responsible for maintaining the confidentiality of your login credentials and for all activities conducted under your account." },
-      {
-        title: "5. Acceptable Use",
-        items: [
-          "Use the platform for unlawful purposes",
-          "Impersonate another person or entity",
-          "Upload harmful, abusive, or malicious content",
-          "Attempt unauthorized access to accounts or systems",
-          "Interfere with platform operations or security",
-        ],
-      },
-      { title: "6. Intellectual Property", text: "All content, logos, trademarks, and materials available on the platform are the property of the company or respective owners and are protected by applicable intellectual property laws." },
-      { title: "7. Suspension or Termination", text: "The platform reserves the right to suspend or terminate accounts that violate these Terms and Conditions without prior notice." },
-      { title: "8. Limitation of Liability", text: "The platform is provided \u201cas is\u201d without warranties of any kind. The company shall not be liable for any damages arising from the use or inability to use the platform." },
-      { title: "9. Changes to Terms", text: "The company may update these Terms and Conditions at any time. Continued use of the platform after changes are posted constitutes acceptance of the revised terms." },
-      { title: "10. Governing Law", text: "These Terms and Conditions shall be governed by the laws applicable in the jurisdiction where the company operates." },
-    ],
-  },
-  {
-    title: "Privacy Policy",
-    sections: [
-      {
-        title: "1. Information Collection",
-        text: "We may collect the following information when you create an account or use the platform:",
-        items: ["Full name", "Email address", "Contact number", "Username and password", "Device and usage information"],
-      },
-      {
-        title: "2. Use of Information",
-        text: "Collected information may be used to:",
-        items: ["Create and manage your account", "Provide platform services", "Improve user experience", "Send important notifications or updates", "Maintain security and prevent fraud"],
-      },
-      { title: "3. Data Protection", text: "We implement reasonable security measures to protect your personal information from unauthorized access, disclosure, or misuse." },
-      {
-        title: "4. Information Sharing",
-        text: "Your personal information will not be sold or rented to third parties. Information may only be shared when:",
-        items: ["Required by law", "Necessary to provide services", "Needed to protect platform security and users"],
-      },
-      { title: "5. Cookies and Tracking", text: "The platform may use cookies and similar technologies to improve functionality and analyze usage patterns." },
-      { title: "6. User Rights", text: "Users may request access, correction, or deletion of their personal information subject to applicable laws and regulations." },
-      { title: "7. Data Retention", text: "Personal information will only be retained for as long as necessary to fulfill the purposes stated in this Privacy Policy or as required by law." },
-      { title: "8. Third-Party Services", text: "The platform may contain links or integrations with third-party services. We are not responsible for the privacy practices of third-party providers." },
-      { title: "9. Changes to Privacy Policy", text: "We reserve the right to update this Privacy Policy at any time. Changes become effective upon posting on the platform." },
-      { title: "10. Contact Information", text: "For questions or concerns regarding these Terms and Conditions or Privacy Policy, users may contact the platform administrator through official communication channels." },
-    ],
-  },
-];
+import LegalDocumentModal from "@/components/legal/LegalDocumentModal";
+import { CURRENT_LEGAL_DOCUMENT_VERSIONS, getCurrentLegalDocument } from "../../../shared/legalDocuments.js";
 
 function Signup() {
   const navigate = useNavigate();
@@ -98,8 +45,10 @@ function Signup() {
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [acceptedPolicies, setAcceptedPolicies] = useState(false);
-  const [showPolicies, setShowPolicies] = useState(false);
+  const [privacyAcknowledged, setPrivacyAcknowledged] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(true);
+  const [showTerms, setShowTerms] = useState(false);
   const passwordStrength = getPasswordStrength(formData.password);
 
   useEffect(() => {
@@ -107,11 +56,14 @@ function Signup() {
   }, [adminExists, adminLoading, navigate]);
 
   useEffect(() => {
-    if (!showPolicies) return undefined;
+    if (!showPrivacyPolicy && !showTerms) return undefined;
 
     const previousOverflow = document.body.style.overflow;
     const closeOnEscape = (event) => {
-      if (event.key === "Escape") setShowPolicies(false);
+      if (event.key === "Escape") {
+        setShowPrivacyPolicy(false);
+        setShowTerms(false);
+      }
     };
 
     document.body.style.overflow = "hidden";
@@ -120,7 +72,7 @@ function Signup() {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", closeOnEscape);
     };
-  }, [showPolicies]);
+  }, [showPrivacyPolicy, showTerms]);
 
   const sanitizeFieldValue = (name, value) => {
     if (name === "phone") return normalizePhoneInput(value);
@@ -152,8 +104,13 @@ function Signup() {
 
     if (submitting) return;
 
-    if (!acceptedPolicies) {
-      setError("Please accept the Terms and Conditions and Privacy Policy.");
+    if (!privacyAcknowledged) {
+      setError("Please read and acknowledge the Privacy Policy before registering.");
+      return;
+    }
+
+    if (!acceptedTerms) {
+      setError("Please agree to the Terms and Conditions before registering.");
       return;
     }
 
@@ -195,13 +152,22 @@ function Signup() {
         zip_code: formData.zip_code,
         phone: formData.phone,
         password: formData.password,
+        privacy_policy_acknowledged: true,
+        privacy_policy_version: CURRENT_LEGAL_DOCUMENT_VERSIONS.privacyPolicy,
+        terms_and_conditions_accepted: true,
+        terms_and_conditions_version: CURRENT_LEGAL_DOCUMENT_VERSIONS.termsAndConditions,
       });
+      if (response?.success !== true || !response.email) {
+        throw new Error(response?.message || "Unable to confirm that the verification email was sent. Please try again.");
+      }
       preservePendingProductRedirect(location.state?.from);
       navigate("/login", {
         replace: true,
         state: {
           from: location.state?.from,
-          message: response.message || `Verification email sent to ${formData.email}.`,
+          registrationNotice: {
+            registeredEmail: response.email,
+          },
         },
       });
     } catch (err) {
@@ -228,6 +194,8 @@ function Signup() {
         </div>
 
         <div className="flex min-h-0 flex-col overflow-hidden bg-white px-4 py-2 text-slate-900 sm:px-6 lg:col-span-3 lg:p-5">
+          {privacyAcknowledged ? (
+          <>
           <div className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col">
             <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">Create your ACGC account</h1>
             <p className="mt-1 text-xs leading-5 text-gray-500">Verify your email to activate your profile.</p>
@@ -325,25 +293,26 @@ function Signup() {
               <div className="shrink-0 bg-white pt-2">
               <div className="mb-2 flex items-start gap-2 text-xs leading-5 text-slate-700 sm:text-sm">
                 <input
-                  id="accept-policies"
+                  id="accept-terms"
                   type="checkbox"
-                  checked={acceptedPolicies}
-                  onChange={(event) => setAcceptedPolicies(event.target.checked)}
-                  aria-label="I accept the Terms and Conditions and Privacy Policy"
+                  checked={acceptedTerms}
+                  onChange={(event) => setAcceptedTerms(event.target.checked)}
+                  aria-label="I have read and agree to the Terms and Conditions."
                   className="mt-0.5 h-4 w-4 shrink-0 accent-red-700"
                 />
-                <p className="min-w-0 flex-1">
-                  <label htmlFor="accept-policies">I accept the </label>
+                <div className="min-w-0 flex-1">
+                  <label htmlFor="accept-terms">I have read and agree to the</label>{" "}
                   <button
                     type="button"
-                    onClick={() => setShowPolicies(true)}
-                    className="text-left font-semibold text-red-700 underline-offset-2 hover:text-red-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                    onClick={() => setShowTerms(true)}
+                    className="font-semibold text-red-700 underline underline-offset-2 hover:text-red-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
                   >
-                    Terms and Conditions and Privacy Policy
+                    Terms and Conditions
                   </button>
-                </p>
+                  .
+                </div>
               </div>
-              <button type="submit" disabled={submitting || !acceptedPolicies} aria-busy={submitting} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-brand px-4 py-2 text-base font-bold text-white shadow-sm transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60">
+              <button type="submit" disabled={submitting || !acceptedTerms} aria-busy={submitting} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-brand px-4 py-2 text-base font-bold text-white shadow-sm transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60">
                 {submitting ? <><LoaderCircle size={17} className="animate-spin" aria-hidden="true" /> Sending verification email...</> : "Verify Email"}
               </button>
               <div className="mt-1.5 flex min-h-9 w-full flex-wrap items-center justify-center gap-1.5 rounded-xl border border-red-100 bg-red-50 px-3 py-1.5 text-xs text-slate-600 sm:text-sm">
@@ -353,79 +322,48 @@ function Signup() {
               </div>
             </form>
           </div>
+          </>
+          ) : (
+            <div className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col justify-center">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-red-700">Before you register</p>
+              <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">Review the Privacy Policy</h1>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                Read ACGC’s Privacy Notice to understand what customer and project information this system collects and how it is used. The registration form will open after you acknowledge the notice.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowPrivacyPolicy(true)}
+                className="mt-6 min-h-11 w-full rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+              >
+                Read Privacy Policy
+              </button>
+              <div className="mt-4 flex flex-wrap justify-center gap-2 text-sm text-slate-600">
+                <span>Already have an account?</span>
+                <Link to="/login" className="font-bold text-brand underline-offset-2 hover:underline">Login</Link>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {showPolicies && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/65 p-3 backdrop-blur-sm sm:p-6"
-          onClick={() => setShowPolicies(false)}
-        >
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="signup-policies-title"
-            className="flex h-[85dvh] max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <header className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-200 px-4 py-3 sm:px-5">
-              <div>
-                <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-red-700">ACGC Services</p>
-                <h2 id="signup-policies-title" className="mt-1 text-base font-bold text-slate-900">Terms and Conditions &amp; Privacy Policy</h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowPolicies(false)}
-                aria-label="Close Terms and Conditions and Privacy Policy"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
-              >
-                <X size={20} aria-hidden="true" />
-              </button>
-            </header>
-            <div className="overflow-y-auto overscroll-contain px-4 py-4 sm:px-5" tabIndex={0}>
-              {policySections.map((policy) => (
-                <section key={policy.title} className="mb-6 last:mb-0" aria-labelledby={`policy-${policy.title.replace(/\s+/g, "-").toLowerCase()}`}>
-                  <h3 id={`policy-${policy.title.replace(/\s+/g, "-").toLowerCase()}`} className="mb-3 border-b border-slate-200 pb-2 text-lg font-bold text-slate-900">
-                    {policy.title}
-                  </h3>
-                  <div className="space-y-3">
-                    {policy.sections.map((section) => (
-                      <section key={section.title}>
-                        <h4 className="text-[13px] font-semibold text-slate-800">{section.title}</h4>
-                        {section.text && <p className="mt-1 text-[13px] leading-5 text-slate-600">{section.text}</p>}
-                        {section.items && (
-                          <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[13px] leading-5 text-slate-600">
-                            {section.items.map((item) => <li key={item}>{item}</li>)}
-                          </ul>
-                        )}
-                      </section>
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
-            <footer className="flex shrink-0 flex-col-reverse justify-end gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:px-5">
-              <button
-                type="button"
-                onClick={() => setShowPolicies(false)}
-                className="min-h-10 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
-              >
-                Close
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAcceptedPolicies(true);
-                  setShowPolicies(false);
-                }}
-                className="min-h-10 rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
-              >
-                Accept Terms
-              </button>
-            </footer>
-          </section>
-        </div>
-      )}
+      {showPrivacyPolicy ? (
+        <LegalDocumentModal
+          document={getCurrentLegalDocument("privacyPolicy")}
+          documentType="privacyPolicy"
+          onClose={() => setShowPrivacyPolicy(false)}
+          onAcknowledge={() => {
+            setPrivacyAcknowledged(true);
+            setShowPrivacyPolicy(false);
+          }}
+        />
+      ) : null}
+      {showTerms ? (
+        <LegalDocumentModal
+          document={getCurrentLegalDocument("termsAndConditions")}
+          documentType="termsAndConditions"
+          onClose={() => setShowTerms(false)}
+        />
+      ) : null}
     </div>
   );
 }

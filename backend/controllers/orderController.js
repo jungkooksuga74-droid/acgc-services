@@ -947,8 +947,10 @@ const repriceInspectionItems = async (items) => {
       throw error;
     }
     const areaOptions = Array.isArray(product.area_options) ? product.area_options : [];
+    const selectedAreaOption = String(item.area_option || "").trim();
     if (["sqft", "per_sqft"].includes(pricingMethod) && areaOptions.length
-      && !areaOptions.some((option) => option.name === item.area_option
+      && selectedAreaOption
+      && !areaOptions.some((option) => option.name === selectedAreaOption
         && (Number(option.price_per_sqft) > 0 || Number(product.price_per_sqft) > 0 || Number(product.estimated_price_override) > 0))) {
       const error = new Error(`Measurement ${index + 1}: select a valid variant.`);
       error.statusCode = 400;
@@ -1174,9 +1176,11 @@ export const createOrder = async (req, res) => {
       const product = productsById.get(String(item.product_id));
       const pricingMethod = getOrderItemPricingMethod(product, item);
       const areaOptions = Array.isArray(product?.area_options) ? product.area_options : [];
+      const selectedAreaOption = String(item.area_option || "").trim();
       return ["sqft", "per_sqft"].includes(pricingMethod)
         && areaOptions.length > 0
-        && !areaOptions.some((option) => option.name === item.area_option
+        && Boolean(selectedAreaOption)
+        && !areaOptions.some((option) => option.name === selectedAreaOption
           && (Number(option.price_per_sqft) > 0 || Number(product?.price_per_sqft) > 0 || Number(product?.estimated_price_override) > 0));
     });
 

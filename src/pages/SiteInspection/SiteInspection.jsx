@@ -741,8 +741,10 @@ export const validateInspectionMeasurementRows = (items = []) => {
       rowErrors.piece_option = "Select an option.";
     }
     const areaOptions = Array.isArray(item.area_options) ? item.area_options : [];
+    const selectedAreaOption = String(item.area_option || "").trim();
     if (["sqft", "per_sqft"].includes(String(item.pricing_method || "").toLowerCase()) && areaOptions.length
-      && !areaOptions.some((option) => option.name === item.area_option
+      && selectedAreaOption
+      && !areaOptions.some((option) => option.name === selectedAreaOption
         && (Number(option.price_per_sqft) > 0 || Number(item.price_per_sqft) > 0 || Number(item.estimated_price_override) > 0))) {
       rowErrors.area_option = "Select an area option.";
     }
@@ -2115,6 +2117,11 @@ function SiteInspection() {
     const areaOptions = Array.isArray(product?.area_options) && product.area_options.length
       ? product.area_options
       : Array.isArray(item.area_options) ? item.area_options : [];
+    const selectedAreaOption = String(item.area_option || "").trim();
+    const areaOptionIsOptional = Number(product?.price_per_sqft) > 0
+      || Number(item.price_per_sqft) > 0
+      || Number(product?.estimated_price_override) > 0
+      || Number(item.estimated_price_override) > 0;
     if (!["sqft", "per_sqft"].includes(method) || !areaOptions.length) return null;
     const fieldClass = darkMode
       ? "min-w-0 w-full rounded-lg border border-slate-600 bg-[#122d42] px-2.5 py-2 text-xs text-slate-100 outline-none focus:border-red-500"
@@ -2123,8 +2130,8 @@ function SiteInspection() {
     return (
       <div className={`w-full rounded-lg border p-2 ${darkMode ? "border-slate-700 bg-slate-900/70" : "border-slate-200 bg-slate-50"}`}>
         <label className="block">
-          <span className={labelClass}>Variant</span>
-          <CustomerDropdown darkMode={darkMode} aria-label={`Variant for measurement ${rowIndex + 1}`} value={item.area_option || ""} onChange={(event) => onFieldChange(item.id, "area_option", event.target.value)} className={fieldClass}>
+          <span className={labelClass}>Variant{areaOptionIsOptional ? " (optional)" : ""}</span>
+          <CustomerDropdown darkMode={darkMode} aria-label={`Variant for measurement ${rowIndex + 1}`} value={selectedAreaOption} onChange={(event) => onFieldChange(item.id, "area_option", event.target.value)} className={fieldClass}>
             <option value="">Select an option</option>
             {areaOptions.map((option) => <option key={option.name} value={option.name}>{option.name} · {hidePaymentAmounts ? "••••••" : `₱${(Number(option.price_per_sqft) || 0).toLocaleString()}`}</option>)}
           </CustomerDropdown>
