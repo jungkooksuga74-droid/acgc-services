@@ -72,14 +72,21 @@ function Login() {
         password: formData.password,
       });
 
-      const requestedPath = location.state?.from?.pathname;
-      const requestedSearch = location.state?.from?.search || "";
-      const requestedHash = location.state?.from?.hash || "";
+      const pendingProductEmail = String(location.state?.pendingProductEmail || "").trim().toLowerCase();
+      const authenticatedEmail = String(response.user?.email || "").trim().toLowerCase();
+      const pendingProductBelongsToAccount = !pendingProductEmail || pendingProductEmail === authenticatedEmail;
+      const requestedFrom = pendingProductBelongsToAccount ? location.state?.from : null;
+      const requestedPath = requestedFrom?.pathname;
+      const requestedSearch = requestedFrom?.search || "";
+      const requestedHash = requestedFrom?.hash || "";
       const pendingCartAdd = location.state?.pendingCartAdd;
       const isCustomer = response.user?.role === "customer";
+      const pendingCartEmail = String(pendingCartAdd?.registeredEmail || "").trim().toLowerCase();
+      const pendingCartBelongsToAccount = !pendingCartEmail || pendingCartEmail === authenticatedEmail;
       const isCustomerDestination = requestedPath === "/customer-dashboard"
         || requestedPath?.startsWith("/customer-dashboard/");
       const isPendingCartAction = isCustomer
+        && pendingCartBelongsToAccount
         && Boolean(pendingCartAdd?.actionId && pendingCartAdd?.productId);
       const isSafeAdminDestination = requestedPath?.startsWith("/")
         && !requestedPath.startsWith("//")

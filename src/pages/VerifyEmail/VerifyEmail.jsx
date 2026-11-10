@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { CheckCircle2, LoaderCircle, XCircle } from "lucide-react";
 import { verifyEmail } from "@/api/auth";
-import { consumePendingProductRedirect } from "@/lib/pendingProductAction";
+import { consumePendingProductRedirectForVerification } from "@/lib/pendingProductAction";
+import { consumePendingGuestCartAddForVerification } from "@/lib/pendingGuestCartAdd";
 
 function VerifyEmail() {
   const [searchParams] = useSearchParams();
@@ -29,11 +30,14 @@ function VerifyEmail() {
   const visibleMessage = token ? message : "This verification link is missing its token.";
   const isSuccess = visibleStatus === "success";
   const handleContinue = () => {
-    const from = consumePendingProductRedirect();
+    const productRedirect = consumePendingProductRedirectForVerification();
+    const pendingCartAdd = consumePendingGuestCartAddForVerification();
     navigate("/login", {
       replace: true,
       state: {
-        ...(from ? { from } : {}),
+        ...(productRedirect?.from ? { from: productRedirect.from } : {}),
+        ...(productRedirect?.registeredEmail ? { pendingProductEmail: productRedirect.registeredEmail } : {}),
+        ...(pendingCartAdd ? { pendingCartAdd } : {}),
         message: "Email verified successfully. You can now log in.",
       },
     });

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { preservePendingProductRedirect } from "@/lib/pendingProductAction";
+import { savePendingGuestCartAddForVerification } from "@/lib/pendingGuestCartAdd";
 import FullAddressField from "@/components/FullAddressField";
 import { isValidStreetAddress, normalizeFullAddress } from "@/lib/fullAddressValidation";
 import { getPasswordStrength, isPasswordPolicySatisfied, PASSWORD_POLICY_HINT, PASSWORD_POLICY_MESSAGE } from "@/lib/passwordStrength";
@@ -160,11 +161,17 @@ function Signup() {
       if (response?.success !== true || !response.email) {
         throw new Error(response?.message || "Unable to confirm that the verification email was sent. Please try again.");
       }
-      preservePendingProductRedirect(location.state?.from);
+      preservePendingProductRedirect(location.state?.from, response.email);
+      const pendingCartAdd = location.state?.pendingCartAdd
+        ? { ...location.state.pendingCartAdd, registeredEmail: response.email }
+        : undefined;
+      if (pendingCartAdd) savePendingGuestCartAddForVerification(pendingCartAdd, response.email);
       navigate("/login", {
         replace: true,
         state: {
           from: location.state?.from,
+          pendingProductEmail: location.state?.from ? response.email : undefined,
+          pendingCartAdd,
           registrationNotice: {
             registeredEmail: response.email,
           },

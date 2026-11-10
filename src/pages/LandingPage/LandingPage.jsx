@@ -51,7 +51,7 @@ import { calculateEstimate } from "@/lib/estimator";
 import { getFinalProjectCost } from "@/lib/orderPricing";
 import { resolveBackendImageUrl } from "../../lib/resolveBackendImageUrl";
 import { buildProductPriceSnapshot, getDefaultBladeCount, getDefaultExtraChargeSelections, getDefaultProductLineTotal, getProductLineTotal } from "@/lib/productPricing";
-import { savePendingProductAction } from "@/lib/pendingProductAction";
+import { clearPendingProductAction, savePendingProductAction } from "@/lib/pendingProductAction";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useCustomerPermissions } from "@/hooks/useCustomerPermissions";
 import { useAdminContactPhone } from "@/hooks/useAdminContactPhone";
@@ -94,6 +94,8 @@ function LandingPage() {
   const [landingReviewPhotoPreview, setLandingReviewPhotoPreview] = useState(null);
   const [showLoginRequired, setShowLoginRequired] = useState(false);
   const [pendingGuestCartAdd, setPendingGuestCartAdd] = useState(null);
+  const [pendingGuestOrderActionId, setPendingGuestOrderActionId] = useState("");
+  const [loginRequiredAction, setLoginRequiredAction] = useState("cart");
   const [addingCartProductId, setAddingCartProductId] = useState("");
   const [productEstimatorForm, setProductEstimatorForm] = useState({ unit: "in", width: "0", height: "0", quantity: 1, blade_glass_type: "", sale_mode: "blades_only", frame_type: "", custom_frame_size: false, blade_count: 1 });
   const [featuredProducts, setFeaturedProducts] = useState([]);
@@ -507,6 +509,8 @@ function LandingPage() {
         product,
         options,
       });
+      setPendingGuestOrderActionId("");
+      setLoginRequiredAction("cart");
       setShowLoginRequired(true);
       return false;
     }
@@ -807,6 +811,10 @@ function LandingPage() {
     productOverride = selectedProduct,
     configurationOverride = null,
   ) => {
+    if (authLoading) {
+      toast("Checking your account. Please try again in a moment.");
+      return;
+    }
     if (actionType === "estimate" && !customerPermissions.can_estimate_pricing) {
       toast.error("Price estimation is currently unavailable.");
       return;
@@ -908,6 +916,13 @@ function LandingPage() {
 
     setPendingActionError("");
     if (selectedProduct === actionProduct) setSelectedProduct(null);
+    if (!user && actionType === "direct") {
+      setPendingGuestCartAdd(null);
+      setPendingGuestOrderActionId(savedAction.id);
+      setLoginRequiredAction("order");
+      setShowLoginRequired(true);
+      return;
+    }
     navigate("/login", {
       state: { from: { pathname: "/customer-dashboard", search: "?tab=products&resumeLandingProduct=1" } },
     });
@@ -2016,7 +2031,7 @@ function LandingPage() {
     <section
       role="dialog"
       aria-modal="true"
-      aria-labelledby="cart-login-required-title"
+      aria-labelledby="guest-action-login-required-title"
       className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-6"
       onClick={(event) => event.stopPropagation()}
     >
@@ -2025,9 +2040,11 @@ function LandingPage() {
           <CircleAlert size={20} aria-hidden="true" />
         </span>
         <div>
-          <h2 id="cart-login-required-title" className="text-lg font-bold text-slate-900">Login Required</h2>
+          <h2 id="guest-action-login-required-title" className="text-lg font-bold text-slate-900">Login Required</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            You need to log in to your account before adding products to your cart.
+            {loginRequiredAction === "order"
+              ? "Log in or sign up for an account before placing your order."
+              : "Log in or sign up for an account before adding products to your cart."}
           </p>
         </div>
       </div>
@@ -2037,6 +2054,8 @@ function LandingPage() {
           onClick={() => {
             setShowLoginRequired(false);
             setPendingGuestCartAdd(null);
+            if (pendingGuestOrderActionId) clearPendingProductAction(pendingGuestOrderActionId);
+            setPendingGuestOrderActionId("");
           }}
           className="min-h-11 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 sm:min-h-10"
         >
@@ -2046,13 +2065,29 @@ function LandingPage() {
           type="button"
           onClick={() => {
             setShowLoginRequired(false);
+            navigate("/signup", {
+              state: {
+                from: loginRequiredAction === "order"
+                  ? { pathname: "/customer-dashboard", search: "?tab=products&resumeLandingProduct=1" }
+                  : { pathname: "/customer-dashboard", search: "?tab=cart" },
+                pendingCartAdd: loginRequiredAction === "cart" ? pendingGuestCartAdd : undefined,
+              },
+            });
+          }}
+          className="min-h-11 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 sm:min-h-10"
+        >
+          Sign Up
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setShowLoginRequired(false);
             navigate("/login", {
               state: {
-                from: {
-                  pathname: "/customer-dashboard",
-                  search: "?tab=cart",
-                },
-                pendingCartAdd: pendingGuestCartAdd,
+                from: loginRequiredAction === "order"
+                  ? { pathname: "/customer-dashboard", search: "?tab=products&resumeLandingProduct=1" }
+                  : { pathname: "/customer-dashboard", search: "?tab=cart" },
+                pendingCartAdd: loginRequiredAction === "cart" ? pendingGuestCartAdd : undefined,
               },
             });
           }}

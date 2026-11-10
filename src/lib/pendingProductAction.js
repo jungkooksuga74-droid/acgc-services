@@ -99,7 +99,7 @@ export const updatePendingProductAction = (expectedId, updates) => {
   }
 };
 
-export const preservePendingProductRedirect = (from) => {
+export const preservePendingProductRedirect = (from, registeredEmail = "") => {
   const storage = getStorage();
   const pendingAction = getPendingProductAction();
   if (
@@ -113,6 +113,7 @@ export const preservePendingProductRedirect = (from) => {
     storage.setItem(REDIRECT_STORAGE_KEY, JSON.stringify({
       actionId: pendingAction.id,
       from,
+      registeredEmail: String(registeredEmail || "").trim().toLowerCase(),
       expiresAt: pendingAction.expiresAt,
     }));
     return true;
@@ -121,7 +122,7 @@ export const preservePendingProductRedirect = (from) => {
   }
 };
 
-export const consumePendingProductRedirect = () => {
+export const consumePendingProductRedirectForVerification = () => {
   const storage = getStorage();
   if (!storage) return null;
 
@@ -135,7 +136,10 @@ export const consumePendingProductRedirect = () => {
       !Number.isFinite(Number(redirect.expiresAt)) ||
       Number(redirect.expiresAt) <= Date.now()
     ) return null;
-    return redirect.from;
+    return {
+      from: redirect.from,
+      registeredEmail: String(redirect.registeredEmail || "").trim().toLowerCase(),
+    };
   } catch {
     try {
       storage.removeItem(REDIRECT_STORAGE_KEY);
@@ -145,6 +149,10 @@ export const consumePendingProductRedirect = () => {
     return null;
   }
 };
+
+export const consumePendingProductRedirect = () => (
+  consumePendingProductRedirectForVerification()?.from || null
+);
 
 const getSessionStorage = () => {
   try {
