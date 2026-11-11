@@ -3308,7 +3308,7 @@ select:not([multiple]) option:hover {
     white-space: nowrap;
   }
 
-  .contract-toolbar-controls > button[aria-label="Close contract"] {
+  .contract-toolbar-controls > button[aria-label^="Close"] {
     position: absolute;
     top: 8px;
     right: 10px;
@@ -3334,6 +3334,7 @@ select:not([multiple]) option:hover {
 
   .contract-page-scroll {
     padding: 12px;
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom));
   }
 }
 
