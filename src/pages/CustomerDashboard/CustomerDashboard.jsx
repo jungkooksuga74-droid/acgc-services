@@ -5624,6 +5624,18 @@ function CustomerDashboard() {
 
           <div className="flex shrink-0 items-center gap-0.5 sm:gap-1 lg:gap-2">
             <button
+              type="button"
+              onClick={() => setActiveTab("home")}
+              aria-current={activeTab === "home" ? "page" : undefined}
+              className={`order-1 hidden rounded-full border px-4 py-2 text-base font-semibold transition md:inline-flex lg:order-3 ${
+                activeTab === "home"
+                  ? darkMode ? "border border-slate-700 bg-slate-800 text-white shadow-sm" : "border-slate-200 bg-slate-100 text-red-600 shadow-sm"
+                  : darkMode ? "border-transparent text-slate-200 hover:bg-slate-800" : "border-transparent text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              Home
+            </button>
+            <button
               onClick={() => setActiveTab("products")}
               aria-current={activeTab === "products" ? "page" : undefined}
               className={`order-3 hidden rounded-full border px-4 py-2 text-base font-semibold transition lg:order-4 lg:inline-flex ${
