@@ -77,6 +77,7 @@ import UnsavedChangesDialog from "@/components/UnsavedChangesDialog";
 import FullAddressField from "@/components/FullAddressField";
 import PasswordStrengthMeter from "@/components/PasswordStrengthMeter";
 import { createUnsavedSnapshot } from "@/lib/unsavedSnapshot";
+import { printContractElement } from "@/lib/printContract";
 import { getStreetAddressError, isValidStreetAddress, normalizeFullAddress } from "@/lib/fullAddressValidation";
 import AboutBusinessContent from "@/components/AboutBusinessContent";
 import FilterDropdown from "@/components/FilterDropdown";
@@ -253,10 +254,10 @@ function ProfileTextField({ label, icon: Icon, darkMode, action, inputClassName 
         {action}
       </span>
       <span className="relative block">
-        <Icon size={18} strokeWidth={1.8} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+        <Icon size={16} strokeWidth={1.8} className="pointer-events-none absolute left-3 top-0 bottom-0 my-auto h-4 w-4 text-slate-400" aria-hidden="true" />
         <input
           {...inputProps}
-          className={`w-full rounded-xl border py-2.5 pl-11 pr-4 outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-500/10 disabled:cursor-not-allowed ${inputTheme} ${inputClassName}`}
+          className={`w-full rounded-xl border py-2.5 pl-10 pr-4 outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-500/10 disabled:cursor-not-allowed ${inputTheme} ${inputClassName}`}
         />
       </span>
     </label>
@@ -2754,18 +2755,27 @@ function CustomerDashboard() {
         state: Object.keys(nextState).length ? nextState : null,
       });
     };
-    const product = pendingCartAdd.product;
-    if (!product) {
-      toast.error("We couldn't restore that product to your cart. Please browse and add it again.");
-      clearPendingCartAdd();
-      return;
-    }
+    const resumePendingCartAdd = async () => {
+      try {
+        const response = await getProduct(pendingCartAdd.productId);
+        const product = response.product;
+        if (!product || product.is_active === false) {
+          throw new Error("This product is no longer available. Please browse and add another product.");
+        }
 
-    const options = pendingCartAdd.options || {};
-    const extraCharges = Array.isArray(options.extra_charges)
-      ? options.extra_charges
-      : getDefaultExtraChargeSelections(product);
-    handleAddToCart(product, extraCharges, options).finally(clearPendingCartAdd);
+        const options = pendingCartAdd.options || {};
+        const extraCharges = Array.isArray(options.extra_charges)
+          ? options.extra_charges
+          : getDefaultExtraChargeSelections(product);
+        await handleAddToCart(product, extraCharges, options);
+      } catch (error) {
+        toast.error(error?.data?.message || error?.message || "We couldn't restore that product to your cart. Please browse and add it again.");
+      } finally {
+        clearPendingCartAdd();
+      }
+    };
+
+    void resumePendingCartAdd();
   }, [cartLoaded, handleAddToCart, loading, location.hash, location.pathname, location.search, location.state, navigate, user?.role]);
 
   const handleAddEstimateToCart = async ({ product, width, height, quantity, notes, measurementUnit, blade_glass_type, piece_option, area_option, sale_mode, frame_type, custom_frame_size, blade_count, extra_charges }) => {
@@ -5002,34 +5012,18 @@ function CustomerDashboard() {
     }
   };
 
-  const printAcceptedContract = async () => {
-    const exportClone = createContractExportClone();
-    if (!exportClone) {
+  const printAcceptedContract = () => {
+    const contractElement = document.getElementById("contract-content");
+    if (!contractElement) {
       toast.error("Unable to locate the accepted contract.");
       return;
     }
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      const dataUrl = await toPng(exportClone.clone, {
-        cacheBust: true,
-        pixelRatio: 2,
-        backgroundColor: "#ffffff",
-      });
-      const printWindow = window.open("", "_blank");
-      if (!printWindow) {
-        toast.error("Please allow popups to print the accepted contract.");
-        return;
-      }
-      printWindow.document.write(`<!doctype html><html><head><title>Accepted Contract</title><style>@page{size:A4 portrait;margin:10mm;}html,body{margin:0;padding:0;background:#fff;}img{width:100%;height:auto;display:block;print-color-adjust:exact;-webkit-print-color-adjust:exact;}</style></head><body><img src="${dataUrl}" alt="Accepted contract" /></body></html>`);
-      printWindow.document.close();
-      printWindow.focus();
-      printWindow.onload = () => printWindow.print();
+      printContractElement(contractElement);
     } catch (error) {
       console.error("Failed to print accepted contract", error);
       toast.error("Failed to print the accepted contract.");
-    } finally {
-      exportClone.wrapper.remove();
     }
   };
 
@@ -6170,14 +6164,24 @@ function CustomerDashboard() {
                 </h1>
                 <p className={`customer-dashboard-welcome-subtitle mt-2 text-sm sm:text-base ${sectionMutedTextClass}`}>Here’s an overview of your orders and project activities.</p>
               </div>
-              <button
-                type="button"
-                onClick={() => setActiveTab("products")}
-                className="customer-dashboard-products-button inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-red-700 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
-              >
-                <ShoppingCart size={17} aria-hidden="true" />
-                Browse Products
-              </button>
+              <div className="flex w-full shrink-0 flex-row items-center gap-2 sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setProfileEditing(true)}
+                  className={`inline-flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-xl border px-1 py-2 text-[11px] font-bold shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 sm:flex-none sm:gap-2 sm:px-4 sm:text-sm ${darkMode ? "border-slate-600 bg-slate-800 text-slate-100 hover:bg-slate-700" : "border-slate-300 bg-white text-slate-800 hover:bg-slate-50"}`}
+                >
+                  <User size={15} aria-hidden="true" />
+                  Edit profile
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("products")}
+                  className="customer-dashboard-products-button inline-flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-xl bg-red-700 px-1 py-2 text-[11px] font-bold text-white shadow-sm transition hover:bg-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 sm:flex-none sm:gap-2 sm:px-4 sm:text-sm"
+                >
+                  <ShoppingCart size={15} aria-hidden="true" />
+                  Browse Products
+                </button>
+              </div>
             </section>
 
             <section aria-label="Order summary" className="customer-dashboard-order-counts grid gap-4 md:grid-cols-3">
@@ -10246,7 +10250,9 @@ function CustomerDashboard() {
           </>
         )}
 
-        {activeTab === "profile" && (
+        {(activeTab === "profile" || profileEditing) && (
+          <>
+          {activeTab === "profile" && (
           <>
           <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 lg:py-8">
             <section className={`overflow-hidden rounded-[18px] border ${darkMode ? "border-slate-700 bg-slate-800 text-slate-100" : "border-slate-200 bg-white text-slate-950"}`}>
@@ -10448,11 +10454,14 @@ function CustomerDashboard() {
             </section>
           </div>
 
+          </>
+          )}
+
           {profileEditing && (
           createPortal(
           <div className="customer-modal-overlay mobile-fullscreen-overlay fixed inset-0 z-[90] overflow-y-auto bg-slate-950/55 px-0 py-0 backdrop-blur-sm sm:px-6 sm:py-8">
-          <div role="dialog" aria-modal="true" aria-labelledby="customer-profile-settings-title" className="mobile-fullscreen-dialog mx-auto w-full max-w-5xl overflow-y-auto overscroll-contain sm:max-h-[calc(100dvh-4rem)] sm:rounded-2xl lg:h-[min(90dvh,56rem)] lg:max-h-[calc(100dvh-4rem)] lg:overflow-hidden">
-          <div className="grid grid-cols-1 gap-3 p-3 sm:gap-4 sm:p-4 lg:h-full lg:min-h-0 lg:grid-cols-[minmax(230px,0.78fr)_minmax(0,1.65fr)]">
+          <div role="dialog" aria-modal="true" aria-labelledby="customer-profile-settings-title" className="mobile-fullscreen-dialog mx-auto flex w-full max-w-5xl flex-col overflow-hidden overscroll-contain sm:h-[calc(100dvh-4rem)] sm:max-h-[calc(100dvh-4rem)] sm:overflow-hidden sm:rounded-2xl lg:h-[min(90dvh,56rem)] lg:max-h-[calc(100dvh-4rem)] lg:overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col gap-0 p-0 sm:gap-4 sm:p-4 lg:grid lg:h-full lg:grid-cols-[minmax(230px,0.78fr)_minmax(0,1.65fr)]">
             <div className={`relative hidden min-w-0 rounded-2xl border p-4 shadow-sm sm:p-5 lg:block ${darkMode ? "border-slate-700 bg-slate-800 text-slate-100" : "border-slate-200 bg-white text-slate-900"}`}>
               <button
                 type="button"
@@ -10492,19 +10501,21 @@ function CustomerDashboard() {
               </div>
             </div>
 
-            <div className={`flex min-h-0 min-w-0 flex-col rounded-2xl border p-4 shadow-sm sm:p-5 lg:overflow-hidden ${darkMode ? "border-slate-700 bg-slate-800" : "border-slate-200 bg-white"}`}>
-              <div className="mb-4 flex flex-wrap items-center gap-3">
-                <User size={24} className="text-red-600" />
-                <div>
-                  <h2 id="customer-profile-settings-title" className={`text-xl font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>Profile Settings</h2>
-                  <p className={darkMode ? "text-sm text-slate-300" : "text-sm text-gray-500"}>Update your account and password settings.</p>
+            <div className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-none border-0 p-4 shadow-sm sm:rounded-2xl sm:border sm:p-5 ${darkMode ? "border-slate-700 bg-slate-800" : "border-slate-200 bg-white"}`}>
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-3">
+                  <User size={24} className="shrink-0 text-red-600" />
+                  <div className="min-w-0">
+                    <h2 id="customer-profile-settings-title" className={`text-xl font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>Profile Settings</h2>
+                    <p className={darkMode ? "text-sm text-slate-300" : "text-sm text-gray-500"}>Update your account and password settings.</p>
+                  </div>
                 </div>
                 <button
                   type="button"
                   onClick={closeProfileEditor}
-                  className={`ml-auto inline-flex rounded-lg border px-3 py-2 text-xs font-semibold ${darkMode ? "border-slate-600 text-slate-200 hover:bg-slate-700" : "border-slate-200 text-slate-700 hover:bg-slate-50"}`}
+                  className={`inline-flex shrink-0 rounded-lg border px-3 py-2 text-xs font-semibold ${darkMode ? "border-slate-600 text-slate-200 hover:bg-slate-700" : "border-slate-200 text-slate-700 hover:bg-slate-50"}`}
                 >
-                  Back to profile
+                  Back
                 </button>
               </div>
 
@@ -10554,7 +10565,7 @@ function CustomerDashboard() {
                   </div>
                 </div>
 
-                <div className="mt-3 min-h-0 overflow-visible lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain">
+                <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain pb-32">
                   {profileTab === "profile" ? (
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <ProfileTextField
@@ -10725,7 +10736,7 @@ function CustomerDashboard() {
                 </div>
               </div>
 
-              <div className={`relative -mx-4 -mb-4 mt-3 flex shrink-0 flex-col-reverse justify-end gap-2 border-t px-4 py-3 sm:-mx-5 sm:-mb-5 sm:px-5 sm:flex-row ${darkMode ? "border-slate-700 bg-slate-800" : "border-slate-200 bg-white"}`}>
+              <div className={`sticky bottom-0 z-10 -mx-4 -mb-4 mt-3 flex shrink-0 flex-col-reverse justify-end gap-2 border-t px-4 py-3 sm:-mx-5 sm:-mb-5 sm:px-5 sm:flex-row ${darkMode ? "border-slate-700 bg-slate-800" : "border-slate-200 bg-white"}`}>
                 {profileHasChanges() && (
                   <button
                     type="button"

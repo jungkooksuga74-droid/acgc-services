@@ -27,8 +27,6 @@ import {
 } from "lucide-react";
 import toast from 'react-hot-toast';
 import AppToaster from "@/components/AppToaster";
-import { toJpeg } from "html-to-image";
-import jsPDF from "jspdf";
 
 import { getAdminOrders, getAdminOrder, generateContract, updateOrderInspection, updateOrderStatus, cancelAdminOrder, createInspection, sendWalkInApprovalEmail } from "@/api/orders";
 import { subscribeToRealtime } from "@/lib/realtimeEvents";
@@ -41,6 +39,8 @@ import UnsavedChangesDialog from "@/components/UnsavedChangesDialog";
 import FullAddressField from "@/components/FullAddressField";
 import { getStreetAddressError, isValidStreetAddress, normalizeFullAddress } from "@/lib/fullAddressValidation";
 import { createUnsavedSnapshot } from "@/lib/unsavedSnapshot";
+import { printContractElement } from "@/lib/printContract";
+import { createContractPdfDataUrl as exportContractElementToPdfDataUrl } from "@/lib/contractPdf";
 import { getSystemSettings, searchCustomers } from "@/api/users";
 import { uploadFiles } from "@/api/uploads";
 import Sidebar from "../../components/layout/Sidebar";
@@ -48,6 +48,7 @@ import Navbar from "../../components/layout/Navbar";
 import AdminPageHeader from "../../components/layout/AdminPageHeader";
 import FilterDropdown from "@/components/FilterDropdown";
 import ContractModal from "../../components/ContractModal";
+import BlankContractGeneratorModal from "@/components/BlankContractGeneratorModal";
 import { formatDateToMMDDYYYY, formatDateToMMMDDYYYY } from "@/lib/dateUtils";
 import { getContractSignoffBadgeClassName, getPaymentStatusBadgeClassName, isAwaitingContractSignoff, statusBadgeBaseClassName } from "@/lib/statusBadgeStyles";
 import { getInstallationDateError, getMinimumInstallationDate } from "@/lib/installationSchedule";
@@ -782,33 +783,6 @@ export const calculateMeasurementSubtotal = (item, product = null) => {
   });
 };
 
-const createContractPrintClone = (element) => {
-  const clone = element.cloneNode(true);
-  clone.style.width = "794px";
-  clone.style.maxWidth = "794px";
-  clone.style.boxSizing = "border-box";
-  clone.style.height = "auto";
-  clone.style.overflow = "visible";
-  clone.style.position = "relative";
-  clone.style.maxHeight = "none";
-  clone.style.backgroundColor = "#fffefc";
-  clone.style.color = "#1b1d27";
-  clone.style.border = "0";
-  clone.style.borderRadius = "0";
-  clone.style.boxShadow = "none";
-  const wrapper = document.createElement("div");
-  wrapper.style.position = "fixed";
-  wrapper.style.left = "-9999px";
-  wrapper.style.top = "0";
-  wrapper.style.opacity = "0";
-  wrapper.style.pointerEvents = "none";
-  wrapper.style.zIndex = "-1";
-  wrapper.appendChild(clone);
-  document.body.appendChild(wrapper);
-
-  return { wrapper, clone };
-};
-
 export const validateInspectionPayload = (payload = {}, { requireScheduleTimes = false, validateSiteAddress = true } = {}) => {
   const nextErrors = {};
 
@@ -1079,6 +1053,7 @@ export const isSiteInspectionVisible = (order) => {
 function SiteInspection() {
   const isMobile = useIsMobile();
   const { user } = useAuth();
+  const canGenerateBlankContract = ["admin", "super_admin"].includes(user?.role);
   const hidePaymentAmounts = user?.role === "skilled_worker" && user?.staff_access?.hide_payment_amounts === true;
   const { darkMode } = useAdminTheme();
   const location = useLocation();
@@ -1150,6 +1125,7 @@ function SiteInspection() {
   const [customerSearchError, setCustomerSearchError] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showContractModal, setShowContractModal] = useState(false);
+  const [showBlankContractModal, setShowBlankContractModal] = useState(false);
   const [showContractGenerationProgress, setShowContractGenerationProgress] = useState(false);
   const [contractData, setContractData] = useState(null);
   const [contractInspection, setContractInspection] = useState(null);
@@ -3469,57 +3445,10 @@ function SiteInspection() {
     }
   };
 
-  const createContractPdfDataUrl = async () => {
-    const contractElement = document.getElementById("contract-content");
-    if (!contractElement) throw new Error("Contract content is not available to export.");
-
-    const { wrapper, clone } = createContractPrintClone(contractElement);
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      const exportQualities = [
-        { pixelRatio: 2.25, quality: 0.9 },
-        { pixelRatio: 1.75, quality: 0.86 },
-        { pixelRatio: 1.35, quality: 0.8 },
-      ];
-
-      for (const quality of exportQualities) {
-        const contractImage = await toJpeg(clone, {
-          ...quality,
-          backgroundColor: "#ffffff",
-        });
-        const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const imageProperties = pdf.getImageProperties(contractImage);
-        const pageMargin = 28.35;
-        const printableWidth = pdfWidth - pageMargin * 2;
-        const printableHeight = pdfHeight - pageMargin * 2;
-        const imageHeight = (imageProperties.height * printableWidth) / imageProperties.width;
-        let heightLeft = imageHeight;
-        let position = pageMargin;
-
-        pdf.addImage(contractImage, "JPEG", pageMargin, position, printableWidth, imageHeight);
-        heightLeft -= printableHeight;
-        while (heightLeft > 0) {
-          position -= printableHeight;
-          pdf.addPage();
-          pdf.addImage(contractImage, "JPEG", pageMargin, position, printableWidth, imageHeight);
-          heightLeft -= printableHeight;
-        }
-
-        const pdfDataUrl = pdf.output("datauristring");
-        if (pdfDataUrl.length <= 12 * 1024 * 1024) return pdfDataUrl;
-      }
-
-      throw new Error("The contract PDF is too large to attach to an email.");
-    } finally {
-      wrapper.remove();
-    }
-  };
-
   const handleDownloadContract = async () => {
     try {
-      const contractPdf = await createContractPdfDataUrl();
+      const contractElement = document.getElementById("contract-content");
+      const contractPdf = await exportContractElementToPdfDataUrl(contractElement);
       const link = document.createElement("a");
       link.href = contractPdf;
       link.download = `ACGC-Contract-${contractInspection?.tracking || contractInspection?._id || "download"}.pdf`;
@@ -3533,32 +3462,18 @@ function SiteInspection() {
     }
   };
 
-  const handlePrintContract = async () => {
+  const handlePrintContract = () => {
     const contractElement = document.getElementById("contract-content");
     if (!contractElement) {
       toast.error("Unable to locate contract content for printing.");
       return;
     }
 
-    const { wrapper, clone } = createContractPrintClone(contractElement);
     try {
-      const image = await toJpeg(clone, { pixelRatio: 2, quality: 0.92, backgroundColor: "#ffffff" });
-      const printWindow = window.open("", "_blank");
-      if (!printWindow) {
-        toast.error("Please allow popups to print the contract.");
-        return;
-      }
-      printWindow.document.write(`<!doctype html><html><head><title>ACGC Contract</title><style>@page{size:A4 portrait;margin:10mm;}html,body{margin:0;padding:0;background:#fff;}img{display:block;width:100%;height:auto;print-color-adjust:exact;-webkit-print-color-adjust:exact;}</style></head><body><img src="${image}" alt="ACGC contract" /></body></html>`);
-      printWindow.document.close();
-      printWindow.onload = () => {
-        printWindow.focus();
-        printWindow.print();
-      };
+      printContractElement(contractElement);
     } catch (error) {
       console.error("Print contract failed:", error);
       toast.error("Unable to print the contract.");
-    } finally {
-      wrapper.remove();
     }
   };
 
@@ -3578,7 +3493,8 @@ function SiteInspection() {
 
     try {
       setSendingCustomerEmail(true);
-      const contractAttachment = await createContractPdfDataUrl();
+      const contractElement = document.getElementById("contract-content");
+      const contractAttachment = await exportContractElementToPdfDataUrl(contractElement);
 
       const emailResponse = await sendWalkInApprovalEmail(orderId, {
         customerName,
@@ -4730,8 +4646,8 @@ function SiteInspection() {
 
           {/* SEARCH */}
           <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between">
-              <div className="relative min-w-0 flex-1 lg:min-w-[10rem] lg:flex-[1_1_20rem] xl:flex-[1_1_28rem]">
+            <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between 2xl:flex-nowrap">
+              <div className="relative min-w-0 flex-1 lg:min-w-[10rem] lg:flex-[1_1_20rem] xl:min-w-[12rem] xl:flex-[1_1_28rem]">
                 <Search
                   size={18}
                   className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
@@ -4745,7 +4661,7 @@ function SiteInspection() {
                 />
               </div>
 
-              <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+              <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-2 sm:justify-end 2xl:flex-nowrap">
                 {activeTab === "site" && (
                   <FilterDropdown
                     label="All Status"
@@ -4789,13 +4705,25 @@ function SiteInspection() {
                     ]}
                   />
                 ) : null}
-                <button
-                  onClick={() => { const initialInspection = resetNewInspectionForm(); setNewInspectionStep(1); newInspectionBaselineRef.current = createUnsavedSnapshot({ inspection: initialInspection, customerSearch: "", selectedCustomer: null }); setShowModal(true); }}
-                  className="inline-flex whitespace-nowrap items-center justify-center rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700"
-                >
-                  <Plus size={18} className="mr-2" />
-                  New Site Inspection
-                </button>
+                <div className="flex flex-wrap items-center gap-2 2xl:flex-nowrap">
+                  {canGenerateBlankContract && (
+                    <button
+                      type="button"
+                      onClick={() => setShowBlankContractModal(true)}
+                      className={`inline-flex whitespace-nowrap items-center justify-center rounded-xl border px-4 py-2.5 text-sm font-semibold shadow-sm transition ${darkMode ? "border-slate-600 bg-slate-800 text-slate-100 hover:bg-slate-700" : "border-slate-300 bg-white text-slate-800 hover:bg-slate-50"}`}
+                    >
+                      <FileText size={18} className="mr-2" aria-hidden="true" />
+                      Generate Blank Contract
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { const initialInspection = resetNewInspectionForm(); setNewInspectionStep(1); newInspectionBaselineRef.current = createUnsavedSnapshot({ inspection: initialInspection, customerSearch: "", selectedCustomer: null }); setShowModal(true); }}
+                    className="inline-flex whitespace-nowrap items-center justify-center rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700"
+                  >
+                    <Plus size={18} className="mr-2" />
+                    New Site Inspection
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -7206,6 +7134,11 @@ function SiteInspection() {
           onSendToCustomer={handleSendToCustomer}
           isSendingToCustomer={sendingCustomerEmail}
           hidePaymentAmounts={hidePaymentAmounts}
+        />
+        <BlankContractGeneratorModal
+          open={showBlankContractModal && canGenerateBlankContract}
+          onClose={() => setShowBlankContractModal(false)}
+          darkMode={darkMode}
         />
         <UnsavedChangesDialog
           open={Boolean(exitConfirmation)}

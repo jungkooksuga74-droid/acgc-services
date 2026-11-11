@@ -573,6 +573,20 @@ function LandingPage() {
       .map((charge) => [charge.name || charge.label || "", charge.is_selected !== false]),
   });
 
+  const promptLoginForCart = (product, configuredOptions = null) => {
+    const options = configuredOptions || getDefaultCartOptions(product);
+    setPendingGuestCartAdd({
+      actionId: createLandingCartId(),
+      productId: String(product?._id || product?.id || ""),
+      product,
+      options,
+    });
+    setSelectedProduct(null);
+    setPendingGuestOrderActionId("");
+    setLoginRequiredAction("cart");
+    setShowLoginRequired(true);
+  };
+
   const handleAddToCart = async (product, options = null) => {
     if (authLoading) {
       toast("Checking your account. Please try again in a moment.");
@@ -585,6 +599,7 @@ function LandingPage() {
         product,
         options,
       });
+      setSelectedProduct(null);
       setPendingGuestOrderActionId("");
       setLoginRequiredAction("cart");
       setShowLoginRequired(true);
@@ -653,6 +668,9 @@ function LandingPage() {
       if (savedCart?.success === false) throw new Error(savedCart.message || "Unable to save your cart.");
       if (Array.isArray(savedCart?.items) && !savedCart.items.some((item) => String(item.cartId || "") === expectedCartId)) {
         throw new Error("The server did not retain this product in your cart. Please try again.");
+      }
+      if (String(selectedProduct?._id || selectedProduct?.id || "") === productId) {
+        setSelectedProduct(null);
       }
       toast.success(`${cartItem.name} added to your cart.`);
       return true;
@@ -903,7 +921,10 @@ function LandingPage() {
     if (!productOverride) return;
     const actionConfiguration = configurationOverride || productEstimatorForm;
     const estimatorValidation = getProductEstimatorState(productOverride, actionConfiguration);
-    if (estimatorValidation.dimensionError || estimatorValidation.quantityError || estimatorValidation.bladeCountError) {
+    if (
+      actionType !== "direct" &&
+      (estimatorValidation.dimensionError || estimatorValidation.quantityError || estimatorValidation.bladeCountError)
+    ) {
       setPendingActionError(
         estimatorValidation.dimensionError || estimatorValidation.quantityError || estimatorValidation.bladeCountError
       );
@@ -993,8 +1014,9 @@ function LandingPage() {
 
     setPendingActionError("");
     if (selectedProduct === actionProduct) setSelectedProduct(null);
-    if (!user && actionType === "direct") {
+    if (actionType === "direct") {
       setPendingGuestCartAdd(null);
+      setSelectedProduct(null);
       setPendingGuestOrderActionId(savedAction.id);
       setLoginRequiredAction("order");
       setShowLoginRequired(true);
@@ -1161,7 +1183,7 @@ function LandingPage() {
         </button>
         <button
           type="button"
-          onClick={() => handleAddToCart(selectedProduct, productEstimatorForm)}
+          onClick={() => promptLoginForCart(selectedProduct, productEstimatorForm)}
           disabled={addingCartProductId === String(selectedProduct._id || selectedProduct.id || "") || Boolean(productEstimatorDimensionError || productEstimatorQuantityError || selectedEstimatorState?.bladeCountError)}
           className={`inline-flex w-full items-center justify-center gap-2 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 disabled:cursor-not-allowed disabled:opacity-50 ${isBladeProduct(selectedProduct) ? "h-[46px] rounded-[10px] border border-slate-200 bg-white text-slate-900 hover:bg-slate-50" : "min-h-12 rounded-xl bg-slate-950 px-4 py-3 text-white hover:bg-slate-800"}`}
         >
@@ -1177,7 +1199,7 @@ function LandingPage() {
 
   return (
   <div className="landing-page-shell flex min-h-screen flex-col overflow-x-hidden bg-white text-gray-900">
-      <AppToaster />
+      <AppToaster zIndex={90} />
 
       {/* NAVBAR */}
 
@@ -1681,7 +1703,7 @@ function LandingPage() {
                         type="button"
                         onClick={(event) => {
                           event.stopPropagation();
-                          handleAddToCart(product);
+                          promptLoginForCart(product);
                         }}
                         disabled={addingCartProductId === String(productId)}
                         className="inline-flex size-[38px] items-center justify-center rounded-full border border-red-600 bg-red-600 text-white transition-colors duration-150 hover:border-red-700 hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:cursor-not-allowed disabled:opacity-50"

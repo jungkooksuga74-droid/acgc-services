@@ -36,6 +36,7 @@ import ContractModal from "../../components/ContractModal";
 import TransactionDetailsModal from "../../components/TransactionDetailsModal";
 import ExtraChargeReceiptModal from "../../components/ExtraChargeReceiptModal";
 import { addExtraChargeReceiptContext, addProjectPaymentReceiptContext } from "@/lib/extraChargeReceipt";
+import { printContractElement } from "@/lib/printContract";
 import { getAdminOrders, createOrGetProjectPaymentReceipt, acceptContract, declineContract, updateOrderStatus, cancelAdminOrder, deleteOrderReview, setOrderReviewVisibility, respondToCustomerReview, downloadTransactionReport } from "@/api/orders";
 import { hasAcceptedTransactionContract, isRecordedCancelledTransaction } from "@/lib/transactionAcceptance";
 import { formatDateToMMDDYYYY, formatDateTimeToMMDDYYYY, formatDateToMMMDDYYYY } from "@/lib/dateUtils";
@@ -1180,40 +1181,18 @@ function Transactions() {
     return { wrapper, clone };
   };
 
-  const printContract = async () => {
+  const printContract = () => {
     const el = document.getElementById("contract-content");
     if (!el) {
       toast.error("Unable to locate contract content for printing.");
       return;
     }
 
-    const { wrapper, clone } = createPrintClone(el);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      const dataUrl = await toPng(clone, {
-        cacheBust: true,
-        pixelRatio: 2,
-        backgroundColor: "#ffffff",
-      });
-
-      const printWindow = window.open("", "_blank");
-      if (!printWindow) {
-        toast.error("Please allow popups to print the contract.");
-        return;
-      }
-
-      printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Contract Print</title><style>@page{size:A4 portrait;margin:10mm;}html,body{margin:0;padding:0;background:#fff;}img{width:100%;height:auto;display:block;print-color-adjust:exact;-webkit-print-color-adjust:exact;}.no-print{display:none !important;}</style></head><body><img src="${dataUrl}" alt="Contract" /></body></html>`);
-      printWindow.document.close();
-      printWindow.focus();
-
-      printWindow.onload = () => {
-        printWindow.print();
-      };
+      printContractElement(el);
     } catch (err) {
       console.error("Failed to prepare contract for printing", err);
       toast.error("Failed to print contract.");
-    } finally {
-      if (wrapper?.parentNode) document.body.removeChild(wrapper);
     }
   };
 

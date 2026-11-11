@@ -1,4 +1,4 @@
-import { FileText, ShieldCheck, TriangleAlert, X } from "lucide-react";
+﻿import { FileText, ShieldCheck, TriangleAlert, X } from "lucide-react";
 import logo from "@/assets/images/ACGCLOGO1.png";
 import acceptedStamp from "@/assets/images/accepted-stamp.svg";
 import { formatDateToMMMDDYYYY } from "@/lib/dateUtils";
@@ -10,19 +10,19 @@ function ContractModal({ isOpen, onClose, inspection, contractData, onAccept, on
 
   const darkMode = false;
 
-  const formatCurrency = (value) => hidePaymentAmounts ? "••••••" : new Intl.NumberFormat("en-PH", {
+  const formatCurrency = (value) => hidePaymentAmounts ? "\u2022\u2022\u2022\u2022\u2022\u2022" : new Intl.NumberFormat("en-PH", {
     style: "currency",
     currency: "PHP",
     minimumFractionDigits: 2,
   }).format(Number(value) || 0);
 
   const shellClass = darkMode
-    ? "mobile-fullscreen-dialog flex h-[94dvh] max-h-[94dvh] w-[min(100%,960px)] flex-col overflow-hidden rounded-2xl border border-slate-600 bg-[#d9d6cd] shadow-2xl"
-    : "mobile-fullscreen-dialog flex h-[94dvh] max-h-[94dvh] w-[min(100%,960px)] flex-col overflow-hidden rounded-2xl bg-[#d9d6cd] shadow-2xl";
-  const headerClass = darkMode ? "sticky top-0 z-20 flex flex-wrap items-center justify-between gap-2 border-b border-slate-600 bg-[#11293a] px-3 py-2 sm:px-4" : "sticky top-0 z-20 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 py-2 sm:px-4";
-  const titleClass = darkMode ? "text-lg font-bold text-slate-100" : "text-lg font-bold text-slate-900";
-  const buttonShellClass = darkMode ? "rounded-lg border border-slate-600 bg-[#1b3045] px-2.5 py-1.5 text-xs text-slate-100 hover:bg-[#233d57] sm:text-sm" : "rounded-lg border bg-white px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-50 sm:text-sm";
-  const closeButtonClass = darkMode ? "rounded-lg p-1.5 text-slate-200 hover:bg-slate-700" : "rounded-lg p-1.5 text-slate-600 hover:bg-slate-100";
+    ? "mobile-fullscreen-dialog flex h-[94dvh] max-h-[94dvh] w-[min(100%,960px)] flex-col overflow-hidden rounded-2xl border border-gray-400 bg-[#e5e5e5] shadow-2xl"
+    : "mobile-fullscreen-dialog flex h-[94dvh] max-h-[94dvh] w-[min(100%,960px)] flex-col overflow-hidden rounded-2xl bg-[#e5e5e5] shadow-2xl";
+  const headerClass = "sticky top-0 z-20 flex flex-wrap items-center justify-between gap-2 border-b border-gray-300 bg-white px-3 py-2 sm:px-4";
+  const titleClass = "text-lg font-bold text-black";
+  const buttonShellClass = "rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs text-gray-800 hover:bg-gray-100 sm:text-sm";
+  const closeButtonClass = "rounded-lg p-1.5 text-gray-700 hover:bg-gray-100";
   const contentClass = "contract-paper contract-fixed-light relative mx-auto w-full";
 
   const formatDate = (value, fallback = "N/A") => {
@@ -100,7 +100,7 @@ function ContractModal({ isOpen, onClose, inspection, contractData, onAccept, on
         <div className={`${headerClass} contract-modal-toolbar`}>
           <div className="contract-toolbar-heading">
             <h2 className={titleClass}>Service Contract</h2>
-            {actionError && <p className={`mt-1 text-sm font-medium ${darkMode ? "text-red-300" : "text-red-600"}`}>{actionError}</p>}
+            {actionError && <p className={`mt-1 text-sm font-medium ${darkMode ? "text-slate-300" : "text-slate-700"}`}>{actionError}</p>}
           </div>
           <div className="contract-toolbar-actions flex flex-wrap items-center gap-2">
             <div className="contract-toolbar-utility">
@@ -120,20 +120,20 @@ function ContractModal({ isOpen, onClose, inspection, contractData, onAccept, on
             </div>
             <div className="contract-toolbar-controls">
             {onSendToCustomer && !isAccepted && (
-              <button type="button" onClick={onSendToCustomer} disabled={isSendingToCustomer || isAwaitingCustomerResponse} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60">
+              <button type="button" onClick={onSendToCustomer} disabled={isSendingToCustomer || isAwaitingCustomerResponse} className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60">
                 {isSendingToCustomer ? "Sending..." : isAwaitingCustomerResponse ? "Sent" : "Send Contract to Customer"}
               </button>
             )}
-            {isAccepted && <span className={`rounded-lg px-3 py-2 text-sm font-bold ${darkMode ? "border border-emerald-400/30 bg-emerald-500/15 text-emerald-200" : "bg-emerald-50 text-emerald-700"}`}>✓ Contract Accepted &amp; Signed</span>}
-            {actionsAllowed && onAccept && <button type="button" onClick={onAccept} disabled={isLoading} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">{isLoading ? "Signing..." : "Accept & Sign Contract"}</button>}
-            {actionsAllowed && onDecline && <button type="button" onClick={onDecline} disabled={isLoading} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60">{isLoading ? "Declining..." : "Decline"}</button>}
+            {isAccepted && <span className="rounded-lg border border-gray-300 bg-gray-100 px-3 py-2 text-sm font-bold text-black">&#10003; Contract Accepted &amp; Signed</span>}
+            {actionsAllowed && onAccept && <button type="button" onClick={onAccept} disabled={isLoading} className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-60">{isLoading ? "Signing..." : "Accept & Sign Contract"}</button>}
+            {actionsAllowed && onDecline && <button type="button" onClick={onDecline} disabled={isLoading} className="rounded-lg border border-black bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-gray-100 disabled:opacity-60">{isLoading ? "Declining..." : "Decline"}</button>}
             <button type="button" onClick={onClose} aria-label="Close contract" className={closeButtonClass}><X size={22} /></button>
             </div>
           </div>
         </div>
 
         {contractStatus === "declined" && inspection.contractDeclineReason && (
-          <div className={`border-b px-5 py-3 text-sm ${darkMode ? "border-red-400/30 bg-red-500/10 text-red-200" : "border-red-200 bg-red-50 text-red-800"}`}>
+          <div className={`border-b px-5 py-3 text-sm ${darkMode ? "border-slate-500 bg-slate-800 text-slate-100" : "border-gray-300 bg-gray-100 text-gray-900"}`}>
             <span className="font-bold">Contract declined:</span> {inspection.contractDeclineReason}
           </div>
         )}
@@ -174,51 +174,51 @@ function ContractModal({ isOpen, onClose, inspection, contractData, onAccept, on
 
             <section className="contract-items-section">
               <div className="contract-table-block">
-                <table className="contract-items-table">
-                  <thead>
-                    <tr>
-                      <th className="contract-table-index">#</th>
-                      <th>Product / Description</th>
-                      <th className="contract-table-centered">W x H (Unit)</th>
-                      <th className="contract-table-centered">Qty</th>
-                      <th className="contract-table-right">Rate</th>
-                      {isPerProductWarranty && <th className="contract-table-centered">Warranty</th>}
-                      <th className="contract-table-right">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {contractItems.map((item, index) => {
-                      const warranty = getItemWarrantyDetails(item, index);
-                      const sourceItem = sourceItems[index] || {};
-                      const bladeDetails = getContractBladeDetails(item, sourceItem);
-                      return (
-                        <tr key={`${item.name || "item"}-${index}`}>
-                          <td className="contract-table-index">{index + 1}</td>
-                          <td className="contract-table-product">
-                            {item.name || "Item"}
-                            {bladeDetails.isBlade && !bladeDetails.hasPriceOverride && (
-                              <div className="contract-table-subtext">
-                                <div>{bladeDetails.glassName || "Glass"} · {bladeDetails.bladeCount} blades × <span>{formatCurrency(bladeDetails.bladeRate)}</span>/blade</div>
-                                {bladeDetails.saleMode === "frame" && (
-                                  <div>Frame: {bladeDetails.frameName || "Selected frame"}{bladeDetails.framePrice > 0 ? ` · ${formatCurrency(bladeDetails.framePrice)}` : ""}</div>
-                                )}
-                              </div>
-                            )}
-                            {bladeDetails.isBlade && bladeDetails.hasPriceOverride && (
-                              <div className="contract-table-subtext">Product price override</div>
-                            )}
-                            {(item.additionalProjectCharges || []).map((charge, chargeIndex) => (
-                              <div key={`item-charge-${index}-${chargeIndex}`} className="contract-table-charge">
-                                + {charge.name}: <span>{formatCurrency(charge.amount)}</span>{charge.note ? ` · ${charge.note}` : ""}
-                              </div>
-                            ))}
-                          </td>
-                          <td className="contract-table-centered">{item.width || 0} x {item.height || 0} ({item.unit || sourceItem.measurement_unit || "in"})</td>
-                          <td className="contract-table-centered">{item.quantity || 1}</td>
-                          <td className="contract-table-right">{bladeDetails.isBlade && !bladeDetails.hasPriceOverride ? <><span className="contract-table-amount">{formatCurrency(bladeDetails.bladeRate)}</span> / blade{bladeDetails.framePrice > 0 ? <div className="contract-table-subtext">+ <span className="contract-table-amount">{formatCurrency(bladeDetails.framePrice)}</span> frame</div> : null}</> : formatCurrency(item.unitPrice)}</td>
-                          {isPerProductWarranty && (
+                <div className="contract-table-scroll">
+                  <table className="contract-items-table">
+                    <thead>
+                      <tr>
+                        <th className="contract-table-index">#</th>
+                        <th>Product / Descrip<wbr />tion</th>
+                        <th className="contract-table-centered">W x H (Unit)</th>
+                        <th className="contract-table-centered">Qty</th>
+                        <th className="contract-table-right">Rate</th>
+                        <th className="contract-table-centered">War<wbr />ranty</th>
+                        <th className="contract-table-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {contractItems.map((item, index) => {
+                        const warranty = getItemWarrantyDetails(item, index);
+                        const sourceItem = sourceItems[index] || {};
+                        const bladeDetails = getContractBladeDetails(item, sourceItem);
+                        return (
+                          <tr key={`${item.name || "item"}-${index}`}>
+                            <td className="contract-table-index">{index + 1}</td>
+                            <td className="contract-table-product">
+                              <div className="contract-table-product-name">{item.name || "Item"}</div>
+                              {bladeDetails.isBlade && !bladeDetails.hasPriceOverride && (
+                                <div className="contract-table-subtext">
+                                  <div>{bladeDetails.glassName || "Glass"}{" \u00b7 "}{bladeDetails.bladeCount} blades{" \u00b7 "}<span>{formatCurrency(bladeDetails.bladeRate)}</span>/blade</div>
+                                  {bladeDetails.saleMode === "frame" && (
+                                    <div>Frame: {bladeDetails.frameName || "Selected frame"}{bladeDetails.framePrice > 0 ? ` \u00b7 ${formatCurrency(bladeDetails.framePrice)}` : ""}</div>
+                                  )}
+                                </div>
+                              )}
+                              {bladeDetails.isBlade && bladeDetails.hasPriceOverride && (
+                                <div className="contract-table-subtext">Product price override</div>
+                              )}
+                              {(item.additionalProjectCharges || []).map((charge, chargeIndex) => (
+                                <div key={`item-charge-${index}-${chargeIndex}`} className="contract-table-charge">
+                                  + {charge.name}: <span>{formatCurrency(charge.amount)}</span>{charge.note ? ` \u00b7 ${charge.note}` : ""}
+                                </div>
+                              ))}
+                            </td>
+                            <td className="contract-table-centered"><span className="contract-table-dimensions">{item.width || 0} x {item.height || 0}</span> <span className="contract-table-measurement-unit">({item.unit || sourceItem.measurement_unit || "in"})</span></td>
+                            <td className="contract-table-centered">{item.quantity || 1}</td>
+                            <td className="contract-table-right contract-table-rate-cell">{bladeDetails.isBlade && !bladeDetails.hasPriceOverride ? <><span className="contract-table-rate-amount contract-table-amount">{formatCurrency(bladeDetails.bladeRate)}</span> / blade{bladeDetails.framePrice > 0 ? <div className="contract-table-subtext">+ <span className="contract-table-rate-amount contract-table-amount">{formatCurrency(bladeDetails.framePrice)}</span> frame</div> : null}</> : <span className="contract-table-rate-amount">{formatCurrency(item.unitPrice)}</span>}</td>
                             <td className="contract-table-centered contract-table-warranty">
-                              <div className="contract-table-product">{warranty.periodText}</div>
+                              <div className="contract-table-warranty-period">{warranty.periodText}</div>
                               {warranty.hasCoverage && (
                                 <div className="contract-table-subtext">
                                   <div>Start: {formatDate(warranty.start, "TBD")}</div>
@@ -226,48 +226,28 @@ function ContractModal({ isOpen, onClose, inspection, contractData, onAccept, on
                                 </div>
                               )}
                             </td>
-                          )}
-                          <td className="contract-table-right contract-table-product"><span className="contract-table-amount">{formatCurrency(item.amount)}</span></td>
+                            <td className="contract-table-right contract-table-product contract-table-amount-cell"><span className="contract-table-amount">{formatCurrency(item.amount)}</span></td>
+                          </tr>
+                        );
+                      })}
+                      {(inspection.project_additional_charges || []).map((charge, index) => (
+                        <tr key={`project-charge-${index}`} className="contract-table-additional-charge">
+                          <td className="contract-table-index">+</td>
+                          <td className="contract-table-product">{charge.name || "Additional project charge"}{charge.note && <div className="contract-table-subtext">{charge.note}</div>}</td>
+                          <td className="contract-table-centered">&#8212;</td>
+                          <td className="contract-table-centered">1</td>
+                          <td className="contract-table-right"><span className="contract-table-amount">{formatCurrency(charge.amount)}</span></td>
+                          <td className="contract-table-centered">&#8212;</td>
+                          <td className="contract-table-right contract-table-product contract-table-amount-cell"><span className="contract-table-amount">{formatCurrency(charge.amount)}</span></td>
                         </tr>
-                      );
-                    })}
-                    {(inspection.project_additional_charges || []).map((charge, index) => (
-                      <tr key={`project-charge-${index}`} className="contract-table-additional-charge">
-                        <td className="contract-table-index">+</td>
-                        <td className="contract-table-product">{charge.name || "Additional project charge"}{charge.note && <div className="contract-table-subtext">{charge.note}</div>}</td>
-                        <td className="contract-table-centered">—</td>
-                        <td className="contract-table-centered">1</td>
-                        <td className="contract-table-right"><span className="contract-table-amount">{formatCurrency(charge.amount)}</span></td>
-                        {isPerProductWarranty && <td className="contract-table-centered">—</td>}
-                        <td className="contract-table-right contract-table-product"><span className="contract-table-amount">{formatCurrency(charge.amount)}</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr>
-                      <td colSpan={isPerProductWarranty ? 6 : 5} className="contract-table-total-label">Total Contract Amount</td>
-                      <td className="contract-table-total-amount">{formatCurrency(totalAmount)}</td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </section>
-
-            <section className="contract-section contract-policy-section">
-              <h2 className="contract-section-title">Contracts, Terms, Cancellation &amp; Warranty Policies</h2>
-              <div className="contract-policy-grid">
-                <article className="contract-policy-card">
-                  <div className="contract-policy-heading"><span>1.</span><h3>Non-Refundable Downpayment.</h3></div>
-                  <p>Once a downpayment has been made, it is strictly non-refundable and the order cannot be cancelled.</p>
-                </article>
-                <article className="contract-policy-card">
-                  <div className="contract-policy-heading"><span>2.</span><h3>Material Turnover After Cancellation Request.</h3></div>
-                  <p>If the customer insists on cancelling after paying the downpayment, no cash or monetary refund will be given. Only the materials already purchased for the order may be turned over to the customer.</p>
-                </article>
-                <article className="contract-policy-card">
-                  <div className="contract-policy-heading"><span>3.</span><h3>Repairs Outside the Warranty Period.</h3></div>
-                  <p>Service or repair requested after the warranty period has ended is subject to a service/repair fee. The applicable fee will be communicated before the repair work begins.</p>
-                </article>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="contract-table-total-row">
+                  <span className="contract-table-total-label">Total Contract Amount</span>
+                  <strong className="contract-table-total-amount">{formatCurrency(totalAmount)}</strong>
+                </div>
               </div>
             </section>
 
@@ -314,7 +294,7 @@ function ContractModal({ isOpen, onClose, inspection, contractData, onAccept, on
                 <div className="contract-signature-grid contract-signed-grid">
                   <div className="contract-signature-block">
                     <p className="contract-signature-line">Electronically Signed by: {contractData.acceptedBy || customerName}</p>
-                    <p className="contract-signature-name">✓ Electronically Signed</p>
+                    <p className="contract-signature-name">&#10003; Electronically Signed</p>
                     <p className="contract-signature-date">Date: {contractData.acceptanceDate || formatDate(new Date())}</p>
                   </div>
                   <div className="contract-accepted-note">Admin Note: This contract is officially issued by ACGC Glass &amp; Aluminum Services. Signature is implicit upon customer acceptance.</div>
@@ -336,10 +316,24 @@ function ContractModal({ isOpen, onClose, inspection, contractData, onAccept, on
               )}
             </section>
 
-            <footer className="contract-document-footer">
-              <span>ACGC GLASS &amp; ALUMINUM SERVICES</span>
-              <span>This document is based on the customer site inspection details.</span>
-            </footer>
+            <section className="contract-section contract-policy-section">
+              <h2 className="contract-section-title">Contracts, Terms, Cancellation &amp; Warranty Policies</h2>
+              <div className="contract-policy-grid">
+                <article className="contract-policy-card">
+                  <div className="contract-policy-heading"><span>1.</span><h3>Non-Refundable Downpayment.</h3></div>
+                  <p>Once a downpayment has been made, it is strictly non-refundable and the order cannot be cancelled.</p>
+                </article>
+                <article className="contract-policy-card">
+                  <div className="contract-policy-heading"><span>2.</span><h3>Material Turnover After Cancellation Request.</h3></div>
+                  <p>If the customer insists on cancelling after paying the downpayment, no cash or monetary refund will be given. Only the materials already purchased for the order may be turned over to the customer.</p>
+                </article>
+                <article className="contract-policy-card">
+                  <div className="contract-policy-heading"><span>3.</span><h3>Repairs Outside the Warranty Period.</h3></div>
+                  <p>Service or repair requested after the warranty period has ended is subject to a service/repair fee. The applicable fee will be communicated before the repair work begins.</p>
+                </article>
+              </div>
+            </section>
+
           </div>
         </div>
       </div>

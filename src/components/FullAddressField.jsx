@@ -24,14 +24,14 @@ export default function FullAddressField({
     ? getStreetAddressError(validationValue ?? address)
     : getFullAddressError(validationValue ?? address);
   const Component = as;
-  const iconPadding = Icon ? "pl-11" : "";
-  const iconPosition = as === "textarea" ? "top-3" : "top-1/2 -translate-y-1/2";
+  const iconPadding = Icon ? "pl-10" : "";
+  const iconPosition = as === "textarea" ? "top-3" : "top-0 bottom-0 my-auto";
 
   return (
     <div className="min-w-0">
       {label && <label htmlFor={props.id || props.name} className={`mb-1 block text-xs font-semibold ${labelClassName}`}>{label}</label>}
       <div className="relative">
-        {Icon && <Icon size={18} strokeWidth={1.8} className={`pointer-events-none absolute left-4 ${iconPosition} text-slate-400`} aria-hidden="true" />}
+        {Icon && <Icon size={16} strokeWidth={1.8} className={`pointer-events-none absolute left-3 h-4 w-4 ${iconPosition} text-slate-400`} aria-hidden="true" />}
         <Component
           {...props}
           id={props.id || props.name}
