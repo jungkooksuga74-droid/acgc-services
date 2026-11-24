@@ -127,6 +127,7 @@ import { getPhilippinePhoneError, isValidPhilippinePhone, normalizePhoneInput } 
 import { getCustomerPaymentContact } from "@/api/users";
 import ProfileAvatar from "../../components/ui/ProfileAvatar";
 import customerGcashQrImage from "@/assets/images/GCASH QR CODE.jpg";
+import gcashLogo from "@/assets/images/GCASHLOGO.png";
 
 const getPaymentSupportPhone = (value) => {
   const original = String(value || "").trim();
@@ -9365,7 +9366,7 @@ function CustomerDashboard() {
                                   </div>
                                   <aside className={`h-fit rounded-xl border p-4 ${darkMode ? "border-sky-800/70 bg-slate-900/70" : "border-sky-100 bg-sky-50/70"}`}>
                                     <div className="flex items-start gap-3">
-                                      <CreditCard size={18} className={`mt-0.5 shrink-0 ${darkMode ? "text-sky-300" : "text-sky-700"}`} aria-hidden="true" />
+                                      <img src={gcashLogo} alt="" className="mt-0.5 h-5 w-5 shrink-0 object-contain" aria-hidden="true" />
                                       <div>
                                         <h3 className={`text-sm font-bold ${darkMode ? "text-slate-100" : "text-slate-900"}`}>GCash payment instructions</h3>
                                         <p className={`mt-1 text-xs leading-5 ${darkMode ? "text-slate-400" : "text-slate-600"}`}>Complete your transfer, then upload its proof below.</p>
