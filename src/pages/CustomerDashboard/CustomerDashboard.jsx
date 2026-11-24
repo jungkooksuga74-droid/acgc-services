@@ -45,6 +45,7 @@ import {
   CalendarDays,
   CreditCard,
   Trash2,
+  Download,
   Paperclip,
   ChevronDown,
   ChevronUp,
@@ -125,6 +126,7 @@ import { getFinalProjectCost } from "@/lib/orderPricing";
 import { getPhilippinePhoneError, isValidPhilippinePhone, normalizePhoneInput } from "@/lib/phoneValidation";
 import { getCustomerPaymentContact } from "@/api/users";
 import ProfileAvatar from "../../components/ui/ProfileAvatar";
+import customerGcashQrImage from "@/assets/images/GCASH QR CODE.jpg";
 
 const getPaymentSupportPhone = (value) => {
   const original = String(value || "").trim();
@@ -143,6 +145,7 @@ const getPaymentSupportPhone = (value) => {
 
 const PRODUCT_IMAGE_PLACEHOLDER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='400' viewBox='0 0 600 400'%3E%3Crect width='600' height='400' fill='%23e2e8f0'/%3E%3Cpath d='M248 148h104a28 28 0 0 1 28 28v48a28 28 0 0 1-28 28H248a28 28 0 0 1-28-28v-48a28 28 0 0 1 28-28Zm0 20a8 8 0 0 0-8 8v48a8 8 0 0 0 8 8h104a8 8 0 0 0 8-8v-48a8 8 0 0 0-8-8H248Zm18 22a16 16 0 1 1 0 32 16 16 0 0 1 0-32Zm50 35 17-21 31 40H244l34-42 25 30 13-7Z' fill='%2394a3b8'/%3E%3Ctext x='300' y='292' text-anchor='middle' font-family='Arial, sans-serif' font-size='24' font-weight='700' fill='%23475569'%3EProduct image%3C/text%3E%3C/svg%3E";
+const CUSTOMER_GCASH_QR_URL = customerGcashQrImage;
 
 const CUSTOMER_READ_NOTIFICATIONS_KEY = "acgc-customer-read-notifications";
 const CUSTOMER_DARK_MODE_KEY = "acgc-customer-dark-mode";
@@ -597,8 +600,10 @@ function CustomerDashboard() {
   const [paymentProofLoading, setPaymentProofLoading] = useState(false);
   const [paymentProofSuccessByOrder, setPaymentProofSuccessByOrder] = useState({});
   const [customerPaymentProofPreview, setCustomerPaymentProofPreview] = useState(null);
+  const [isGcashQrAvailable, setIsGcashQrAvailable] = useState(true);
   const [adminPaymentDocumentLoadingId, setAdminPaymentDocumentLoadingId] = useState("");
   const paymentProofSubmittingRef = useRef(false);
+  const paymentProofFileInputRef = useRef(null);
 
   useEffect(() => {
     const previewUrl = customerPaymentProofPreview?.url;
@@ -4111,6 +4116,12 @@ function CustomerDashboard() {
     if (file) setPaymentProofError("");
   };
 
+  const removePaymentProofFile = () => {
+    setPaymentProofForm((prev) => ({ ...prev, file: null, fileName: "" }));
+    setPaymentProofError("");
+    if (paymentProofFileInputRef.current) paymentProofFileInputRef.current.value = "";
+  };
+
   const openCustomerPaymentProofPreview = (proofUrl, fileName = "Payment proof") => {
     const url = ensureAbsoluteUrl(proofUrl);
     if (!url) return;
@@ -4118,6 +4129,15 @@ function CustomerDashboard() {
       url,
       fileName,
       isPdf: /\.pdf(?:$|[?#])/i.test(`${fileName} ${url}`),
+    });
+  };
+
+  const openCustomerGcashQrPreview = () => {
+    setCustomerPaymentProofPreview({
+      url: CUSTOMER_GCASH_QR_URL,
+      fileName: "gcash-payment-qr.jpg",
+      isPdf: false,
+      isPaymentQr: true,
     });
   };
 
@@ -9283,25 +9303,57 @@ function CustomerDashboard() {
                               </div>
                             ) : paymentProofOpenOrderId === orderId ? (
                               <div className={`sm:col-span-2 rounded-xl border p-4 sm:p-5 ${darkMode ? "border-slate-700 bg-slate-800/80" : "border-[#e9e1d4] bg-white"}`}>
-                                <div className="grid w-full gap-3">
+                                <div className="grid w-full gap-4 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
                                   <div className="w-full max-w-[420px]">
                                     <label htmlFor={`payment-amount-${orderId}`} className={`mb-1.5 flex items-center gap-2 text-sm font-bold ${darkMode ? "text-slate-100" : "text-slate-900"}`}>
                                       Amount paid <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${darkMode ? "bg-amber-500/15 text-amber-300" : "bg-amber-100 text-amber-700"}`}>(required)</span>
                                     </label>
                                     <p className={`mb-2 text-xs leading-5 ${darkMode ? "text-sky-300" : "text-blue-700"}`}>
                                       {isDownpaymentCovered
-                                        ? `${isFullPaymentTerms ? "Full payment complete" : "Downpayment covered"}. Remaining balance: ${formatRequiredPaymentAmount(balanceAmount)}. Enter any amount up to ${formatRequiredPaymentAmount(balanceAmount)}.`
-                                        : `${isFullPaymentTerms ? "Full payment still due" : "Downpayment still due"}: ${formatRequiredPaymentAmount(downpaymentBalance)}. Submit at least this amount and no more than ${formatRequiredPaymentAmount(balanceAmount)}.`}
+                                        ? <>{isFullPaymentTerms ? "Full payment complete" : "Downpayment covered"}. Remaining balance: <span className="font-bold text-emerald-700 dark:text-emerald-400">{formatRequiredPaymentAmount(balanceAmount)}</span>. Enter any amount up to <span className="font-bold text-emerald-700 dark:text-emerald-400">{formatRequiredPaymentAmount(balanceAmount)}</span>.</>
+                                        : <>{isFullPaymentTerms ? "Full payment still due" : "Downpayment still due"}: <span className="font-bold text-emerald-700 dark:text-emerald-400">{formatRequiredPaymentAmount(downpaymentBalance)}</span>. Submit at least this amount and no more than <span className="font-bold text-emerald-700 dark:text-emerald-400">{formatRequiredPaymentAmount(balanceAmount)}</span>.</>}
                                     </p>
-                                    <input
-                                      id={`payment-amount-${orderId}`}
-                                      type="text"
-                                      inputMode="decimal"
-                                      value={paymentProofForm.amount}
-                                      onChange={(event) => setPaymentProofForm((prev) => ({ ...prev, amount: formatCustomerPaymentAmountInput(event.target.value) }))}
-                                      placeholder="₱0.00"
-                                      className={`h-11 w-full rounded-xl border px-3 text-sm font-semibold outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 ${darkMode ? "border-slate-600 bg-slate-900 text-white placeholder:text-slate-400" : "border-[#e9e1d4] bg-white text-slate-900 placeholder:text-slate-400"}`}
-                                    />
+                                    <div className="relative">
+                                      <span
+                                        aria-hidden="true"
+                                        className={`pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-semibold ${darkMode ? "text-emerald-400" : "text-emerald-700"}`}
+                                      >
+                                        ₱
+                                      </span>
+                                      <input
+                                        id={`payment-amount-${orderId}`}
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={paymentProofForm.amount}
+                                        onChange={(event) => setPaymentProofForm((prev) => ({ ...prev, amount: formatCustomerPaymentAmountInput(event.target.value) }))}
+                                        placeholder="0.00"
+                                        className={`h-11 w-full rounded-xl border py-2 pl-8 pr-3 text-sm font-semibold outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 ${darkMode ? "border-slate-600 bg-slate-900 text-emerald-400 placeholder:text-emerald-400" : "border-[#e9e1d4] bg-white text-emerald-700 placeholder:text-emerald-700"}`}
+                                      />
+                                    </div>
+                                    {isGcashQrAvailable ? (
+                                      <button
+                                        type="button"
+                                        onClick={openCustomerGcashQrPreview}
+                                        className={`mt-3 flex w-full items-center gap-3 rounded-xl border p-2 text-left transition hover:border-blue-400 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${darkMode ? "border-slate-700 bg-slate-900/70" : "border-slate-200 bg-slate-50"}`}
+                                        aria-label="Open and download the GCash payment QR code"
+                                      >
+                                        <img
+                                          src={CUSTOMER_GCASH_QR_URL}
+                                          alt="GCash payment QR code"
+                                          className="h-24 w-14 shrink-0 rounded-lg border border-slate-200 bg-white object-contain"
+                                          onLoad={() => setIsGcashQrAvailable(true)}
+                                          onError={() => setIsGcashQrAvailable(false)}
+                                        />
+                                        <span className="min-w-0">
+                                          <span className={`block text-xs font-bold ${darkMode ? "text-slate-100" : "text-slate-900"}`}>Pay with GCash</span>
+                                          <span className={`mt-1 block text-[11px] leading-4 ${darkMode ? "text-slate-400" : "text-slate-600"}`}>Tap to view the QR code and download it.</span>
+                                        </span>
+                                      </button>
+                                    ) : (
+                                      <p role="status" className={`mt-3 rounded-lg border px-3 py-2 text-xs ${darkMode ? "border-slate-700 bg-slate-900 text-slate-400" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
+                                        The GCash payment QR is temporarily unavailable.
+                                      </p>
+                                    )}
                                     {isPaymentBelowRequired && (
                                       <div role="alert" className={`mt-2 flex items-start gap-2 rounded-lg border px-3 py-2.5 text-xs leading-5 ${darkMode ? "border-red-700/70 bg-red-950/35 text-red-200" : "border-red-200 bg-red-50 text-red-900"}`}>
                                         <AlertTriangle size={15} className={`mt-0.5 shrink-0 ${darkMode ? "text-red-400" : "text-red-600"}`} aria-hidden="true" />
@@ -9311,28 +9363,68 @@ function CustomerDashboard() {
                                       </div>
                                     )}
                                   </div>
-                                  <div className="w-full pt-1">
+                                  <aside className={`h-fit rounded-xl border p-4 ${darkMode ? "border-sky-800/70 bg-slate-900/70" : "border-sky-100 bg-sky-50/70"}`}>
+                                    <div className="flex items-start gap-3">
+                                      <CreditCard size={18} className={`mt-0.5 shrink-0 ${darkMode ? "text-sky-300" : "text-sky-700"}`} aria-hidden="true" />
+                                      <div>
+                                        <h3 className={`text-sm font-bold ${darkMode ? "text-slate-100" : "text-slate-900"}`}>GCash payment instructions</h3>
+                                        <p className={`mt-1 text-xs leading-5 ${darkMode ? "text-slate-400" : "text-slate-600"}`}>Complete your transfer, then upload its proof below.</p>
+                                      </div>
+                                    </div>
+                                    <ol className="mt-4 space-y-3">
+                                      {[
+                                        "Enter the amount you will pay. Follow the required minimum and maximum shown above.",
+                                        "Use the GCash QR code to complete the transfer in your GCash app.",
+                                        "Save a clear screenshot of the successful transaction, including its reference details.",
+                                        "Upload the screenshot or receipt under Payment proof below, then select Submit Payment Info.",
+                                        "Wait for ACGC to verify your payment. It will only be marked as paid after verification.",
+                                      ].map((instruction, instructionIndex) => (
+                                        <li key={instruction} className="flex items-start gap-2.5">
+                                          <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${darkMode ? "bg-sky-500/15 text-sky-300" : "bg-sky-100 text-sky-800"}`}>
+                                            {instructionIndex + 1}
+                                          </span>
+                                          <span className={`pt-0.5 text-xs leading-5 ${darkMode ? "text-slate-300" : "text-slate-700"}`}>{instruction}</span>
+                                        </li>
+                                      ))}
+                                    </ol>
+                                  </aside>
+                                  <div className="w-full pt-1 lg:col-span-2">
                                     <div className={`mb-2 flex items-center gap-2 text-sm font-bold ${darkMode ? "text-slate-100" : "text-slate-900"}`}>
                                       Payment proof <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${darkMode ? "bg-amber-500/15 text-amber-300" : "bg-amber-100 text-amber-700"}`}>(required)</span>
                                     </div>
                                     <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                                      <label
-                                        htmlFor={`payment-proof-${orderId}`}
-                                        className={`flex min-h-11 w-full max-w-[420px] min-w-0 shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-dashed px-3 py-2 transition focus-within:ring-2 focus-within:ring-amber-500 ${darkMode ? "border-slate-600 bg-slate-900 hover:border-slate-500" : "border-[#e9e1d4] bg-[#faf8f4] hover:border-amber-400"}`}
-                                      >
-                                        <FileText size={15} className="shrink-0 text-slate-400" aria-hidden="true" />
-                                        <span className={`min-w-0 flex-1 truncate text-[11px] font-medium ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
-                                          {paymentProofForm.fileName || "Choose an image or PDF"}
-                                        </span>
-                                        <input
-                                          id={`payment-proof-${orderId}`}
-                                          type="file"
-                                          accept="image/*,.pdf"
-                                          onChange={handlePaymentProofFileChange}
-                                          required
-                                          className="sr-only"
-                                        />
-                                      </label>
+                                      <div className="flex w-full max-w-[420px] min-w-0 items-center gap-2">
+                                        <label
+                                          htmlFor={`payment-proof-${orderId}`}
+                                          className={`flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-xl border border-dashed px-3 py-2 transition focus-within:ring-2 focus-within:ring-amber-500 ${darkMode ? "border-slate-600 bg-slate-900 hover:border-slate-500" : "border-[#e9e1d4] bg-[#faf8f4] hover:border-amber-400"}`}
+                                        >
+                                          <FileText size={15} className="shrink-0 text-slate-400" aria-hidden="true" />
+                                          <span className={`min-w-0 flex-1 truncate text-[11px] font-medium ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
+                                            {paymentProofForm.fileName || "Choose an image or PDF"}
+                                          </span>
+                                          <input
+                                            ref={paymentProofFileInputRef}
+                                            id={`payment-proof-${orderId}`}
+                                            type="file"
+                                            accept="image/*,.pdf"
+                                            onChange={handlePaymentProofFileChange}
+                                            required
+                                            className="sr-only"
+                                          />
+                                        </label>
+                                        {paymentProofForm.file && (
+                                          <button
+                                            type="button"
+                                            onClick={removePaymentProofFile}
+                                            disabled={paymentProofLoading}
+                                            aria-label={`Remove ${paymentProofForm.fileName || "payment proof"}`}
+                                            title="Remove payment proof"
+                                            className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:cursor-not-allowed disabled:opacity-50 ${darkMode ? "border-red-900/70 text-red-300 hover:bg-red-950/50" : "border-red-200 text-red-600 hover:bg-red-50"}`}
+                                          >
+                                            <Trash2 size={16} aria-hidden="true" />
+                                          </button>
+                                        )}
+                                      </div>
                                       <div className="flex shrink-0 justify-end gap-2 sm:ml-auto">
                                         <button
                                           type="button"
@@ -9344,8 +9436,8 @@ function CustomerDashboard() {
                                         <button
                                           type="button"
                                           onClick={() => submitPaymentProof(order)}
-                                          disabled={paymentProofLoading || isPaymentBelowRequired}
-                                          className="inline-flex h-9 w-fit items-center justify-center rounded-lg bg-emerald-700 px-4 text-xs font-bold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-70"
+                                          disabled={paymentProofLoading || !paymentProofForm.amount.trim() || !paymentProofForm.file || isPaymentBelowRequired}
+                                          className="inline-flex h-9 w-fit items-center justify-center rounded-lg bg-emerald-700 px-4 text-xs font-bold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                           {paymentProofLoading ? "Submitting..." : "Submit Payment Info"}
                                         </button>
@@ -11294,25 +11386,33 @@ function CustomerDashboard() {
             <section
               role="dialog"
               aria-modal="true"
-              aria-labelledby="customer-payment-proof-title"
-              className={`mobile-fullscreen-dialog flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden sm:h-[min(90vh,54rem)] sm:max-h-[90vh] sm:max-w-4xl sm:rounded-xl sm:border ${darkMode ? "border-slate-700 bg-slate-900 text-slate-100" : "border-slate-200 bg-white text-slate-900"}`}
+              aria-labelledby={customerPaymentProofPreview.isPaymentQr ? undefined : "customer-payment-proof-title"}
+              aria-label={customerPaymentProofPreview.isPaymentQr ? "GCash payment QR" : undefined}
+              className={customerPaymentProofPreview.isPaymentQr
+                ? "relative mx-auto h-fit w-fit max-h-[94dvh] max-w-[96vw] self-center overflow-visible sm:max-h-[90dvh] sm:max-w-[90vw]"
+                : `mobile-fullscreen-dialog flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden sm:h-[min(90vh,54rem)] sm:max-h-[90vh] sm:max-w-4xl sm:rounded-xl sm:border ${darkMode ? "border-slate-700 bg-slate-900 text-slate-100" : "border-slate-200 bg-white text-slate-900"}`}
             >
-              <header className={`flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3 sm:px-5 ${darkMode ? "border-slate-700" : "border-slate-200"}`}>
-                <div className="min-w-0">
-                  <h2 id="customer-payment-proof-title" className="text-sm font-bold">{customerPaymentProofPreview.isPrivateDocument ? "Admin supporting document" : "Customer payment proof"}</h2>
-                  <p className={`truncate text-xs ${darkMode ? "text-slate-400" : "text-slate-500"}`} title={customerPaymentProofPreview.fileName}>{customerPaymentProofPreview.fileName}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCustomerPaymentProofPreview(null)}
-                  aria-label="Close payment proof preview"
-                  title="Close preview"
-                  className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition ${darkMode ? "text-slate-300 hover:bg-slate-800" : "text-slate-600 hover:bg-slate-100"}`}
-                >
-                  <X size={18} aria-hidden="true" />
-                </button>
-              </header>
-              <div className={`flex min-h-0 flex-1 items-center justify-center overflow-auto p-3 sm:p-5 ${darkMode ? "bg-slate-950" : "bg-slate-100"}`}>
+              {!customerPaymentProofPreview.isPaymentQr && (
+                <header className={`flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3 sm:px-5 ${darkMode ? "border-slate-700" : "border-slate-200"}`}>
+                  <div className="min-w-0">
+                    <h2 id="customer-payment-proof-title" className="text-sm font-bold">{customerPaymentProofPreview.isPrivateDocument ? "Admin supporting document" : "Customer payment proof"}</h2>
+                    <p className={`truncate text-xs ${darkMode ? "text-slate-400" : "text-slate-500"}`} title={customerPaymentProofPreview.fileName}>{customerPaymentProofPreview.fileName}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCustomerPaymentProofPreview(null)}
+                    aria-label="Close payment proof preview"
+                    title="Close preview"
+                    className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition ${darkMode ? "text-slate-300 hover:bg-slate-800" : "text-slate-600 hover:bg-slate-100"}`}
+                  >
+                    <X size={18} aria-hidden="true" />
+                  </button>
+                </header>
+              )}
+              <div className={customerPaymentProofPreview.isPaymentQr
+                ? "flex items-center justify-center overflow-hidden"
+                : `flex min-h-0 flex-1 items-center justify-center overflow-auto p-3 sm:p-5 ${darkMode ? "bg-slate-950" : "bg-slate-100"}`}
+              >
                 {customerPaymentProofPreview.isPdf ? (
                   <iframe
                     src={customerPaymentProofPreview.url}
@@ -11322,11 +11422,35 @@ function CustomerDashboard() {
                 ) : (
                   <img
                     src={customerPaymentProofPreview.url}
-                    alt={`Payment document: ${customerPaymentProofPreview.fileName}`}
-                    className="max-h-full max-w-full rounded-lg object-contain"
+                    alt={customerPaymentProofPreview.isPaymentQr ? "GCash payment QR code" : `Payment document: ${customerPaymentProofPreview.fileName}`}
+                    className={customerPaymentProofPreview.isPaymentQr
+                      ? "block max-h-[94dvh] max-w-[96vw] rounded-xl object-contain shadow-2xl sm:max-h-[90dvh] sm:max-w-[90vw]"
+                      : "max-h-full max-w-full rounded-lg object-contain"}
                   />
                 )}
               </div>
+              {customerPaymentProofPreview.isPaymentQr && (
+                <div className="absolute right-3 top-3 flex gap-2">
+                  <a
+                    href={customerPaymentProofPreview.url}
+                    download={customerPaymentProofPreview.fileName}
+                    aria-label="Download GCash QR"
+                    title="Download GCash QR"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-950/65 text-white shadow-lg backdrop-blur transition hover:bg-slate-950/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                  >
+                    <Download size={18} aria-hidden="true" />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setCustomerPaymentProofPreview(null)}
+                    aria-label="Close GCash QR"
+                    title="Close"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-950/65 text-white shadow-lg backdrop-blur transition hover:bg-slate-950/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                  >
+                    <X size={18} aria-hidden="true" />
+                  </button>
+                </div>
+              )}
               {customerPaymentProofPreview.isPrivateDocument && (
                 <footer className={`flex shrink-0 justify-end border-t px-4 py-3 sm:px-5 ${darkMode ? "border-slate-700 bg-slate-900" : "border-slate-200 bg-white"}`}>
                   <a
